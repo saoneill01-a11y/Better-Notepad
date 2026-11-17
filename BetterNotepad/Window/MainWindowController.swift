@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 import Combine
 
-/// The single main window: tab bar, find bar, editor and status bar, plus all document actions.
+/// One editor window: tab bar, find bar, editor and status bar, plus all document actions.
+/// The app can have several; AppDelegate owns them and the shared session.
 @MainActor
 final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let tabManager = TabManager()
@@ -13,17 +14,17 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
     private let editorContainer = NSView()
     private var findBarHost: NSHostingView<FindBarView>!
     private var cancellables = Set<AnyCancellable>()
-    private var sessionSaveWork: DispatchWorkItem?
     private var fileMonitorTimer: Timer?
     private var isShowingFileChangeAlert = false
-    private var isRestoring = false
+    private var isClosingWindow = false
     private let numberFormatter: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .decimal
         return f
     }()
 
-    private var currentTab: EditorTab? { tabManager.selectedTab }
+    private var app: AppDelegate { AppDelegate.shared }
+    var currentTab: EditorTab? { tabManager.selectedTab }
 
     static func make() -> MainWindowController {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 680),
@@ -35,6 +36,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         window.isRestorable = false
         window.isReleasedWhenClosed = false
         window.titlebarSeparatorStyle = .none
+        // The title bar takes the tab bar's colour so they read as one strip, like Notepad.
+        window.titlebarAppearsTransparent = true
+        window.backgroundColor = Theme.chrome
         return MainWindowController(window: window)
     }
 
@@ -68,10 +72,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         let statusHost = NSHostingView(rootView: StatusBarView(model: status))
         statusHost.sizingOptions = []
 
-        let separator = NSBox()
-        separator.boxType = .separator
-
-        let views: [NSView] = [tabBar, separator, findHost, editorContainer, statusHost]
+        let views: [NSView] = [tabBar, findHost, editorContainer, statusHost]
         let stack = NSStackView(views: views)
         stack.orientation = .vertical
         stack.spacing = 0
@@ -116,6 +117,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         findState.onReplace = { [weak self] in self?.replaceCurrent() }
         findState.onReplaceAll = { [weak self] in self?.replaceAll() }
         findState.onClose = { [weak self] in self?.hideFindBar() }
+
+        status.onChooseEncoding = { [weak self] in self?.chooseEncoding($0) }
+        status.onChooseLineEnding = { [weak self] in self?.chooseLineEnding($0) }
     }
 
     private func preferencesChanged() {
@@ -127,6 +131,12 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
 
     private func makeTab(id: UUID = UUID()) -> EditorTab {
         let tab = EditorTab(id: id)
+        adopt(tab)
+        return tab
+    }
+
+    /// Points a tab's callbacks at this window (new tabs, and tabs moved in from another window).
+    private func adopt(_ tab: EditorTab) {
         tab.onTextChange = { [weak self] tab in self?.tabDidChangeText(tab) }
         tab.onSelectionChange = { [weak self] tab in self?.tabDidChangeSelection(tab) }
         tab.onViewStateChange = { [weak self] tab in
@@ -135,7 +145,6 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         }
         tab.onEscape = { [weak self] in self?.hideFindBar() }
         tab.apply(preferences: prefs)
-        return tab
     }
 
     func selectTab(id: UUID) {
@@ -143,6 +152,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         if tab.scrollView.superview !== editorContainer {
             editorContainer.subviews.forEach { $0.removeFromSuperview() }
             let sv = tab.scrollView
+            sv.removeFromSuperview()
             sv.translatesAutoresizingMaskIntoConstraints = false
             editorContainer.addSubview(sv)
             NSLayoutConstraint.activate([
@@ -170,14 +180,34 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         selectTab(id: tab.id)
     }
 
+    /// Adds a tab that already has content (moved from another window).
+    /// Adds a tab moved in from another window. Existing tabs, even empty ones, are kept.
+    func insert(_ tab: EditorTab, at index: Int? = nil) {
+        adopt(tab)
+        let position = min(max(0, index ?? tabManager.tabs.count), tabManager.tabs.count)
+        tabManager.tabs.insert(tab, at: position)
+        selectTab(id: tab.id)
+    }
+
+    /// Tab position under a screen point in this window's tab bar (tabs are 190 pt wide, 2 pt apart).
+    func tabInsertionIndex(forScreenPoint point: NSPoint) -> Int {
+        guard let window else { return tabManager.tabs.count }
+        let x = window.convertPoint(fromScreen: point).x - 6
+        return min(max(0, Int((x / 192).rounded())), tabManager.tabs.count)
+    }
+
     @objc func closeTab(_ sender: Any?) {
         if let tab = currentTab { requestCloseTab(id: tab.id) }
     }
 
-    func requestCloseTab(id: UUID) {
-        guard let tab = tabManager.tabs.first(where: { $0.id == id }), let window else { return }
+    func requestCloseTab(id: UUID, completion: ((Bool) -> Void)? = nil) {
+        guard let tab = tabManager.tabs.first(where: { $0.id == id }), let window else {
+            completion?(true)
+            return
+        }
         guard tab.needsSavePrompt else {
             closeTabNow(tab)
+            completion?(true)
             return
         }
         selectTab(id: id)
@@ -192,28 +222,205 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             switch response {
             case .alertFirstButtonReturn:
                 DispatchQueue.main.async {
-                    self.save(tab) { ok in if ok { self.closeTabNow(tab) } }
+                    self.save(tab) { ok in
+                        if ok { self.closeTabNow(tab) }
+                        completion?(ok)
+                    }
                 }
             case .alertSecondButtonReturn:
                 self.closeTabNow(tab)
+                completion?(true)
             default:
-                break
+                completion?(false)
             }
         }
     }
 
     private func closeTabNow(_ tab: EditorTab) {
+        removeTab(tab, rememberClosed: true)
+        if tabManager.tabs.isEmpty && !isClosingWindow {
+            newTab(nil)
+        }
+    }
+
+    /// Takes a tab out of this window. Closed tabs are remembered for ⇧⌘T and their autosave is removed.
+    private func removeTab(_ tab: EditorTab, rememberClosed: Bool, keepAlive: Bool = false) {
         guard let index = tabManager.tabs.firstIndex(where: { $0 === tab }) else { return }
         let wasSelected = tab.id == tabManager.selectedID
-        tab.discard()
+        if rememberClosed, let record = tab.closedRecord() {
+            app.rememberClosedTab(record)
+        }
+        if !keepAlive { tab.discard() }
         tab.scrollView.removeFromSuperview()
         tabManager.tabs.remove(at: index)
-        if tabManager.tabs.isEmpty {
-            newTab(nil)
-        } else if wasSelected {
+        if wasSelected, !tabManager.tabs.isEmpty {
             selectTab(id: tabManager.tabs[min(index, tabManager.tabs.count - 1)].id)
         }
         scheduleSessionSave()
+    }
+
+    @objc func moveTabToNewWindow(_ sender: Any?) {
+        if let tab = currentTab { moveTabToNewWindow(id: tab.id) }
+    }
+
+    func moveTabToNewWindow(id: UUID) {
+        guard tabManager.tabs.count > 1, let tab = tabManager.tabs.first(where: { $0.id == id }) else { return }
+        tab.flushAutosave()
+        removeTab(tab, rememberClosed: false, keepAlive: true)
+        app.openWindow(with: tab, cascadingFrom: self)
+    }
+
+    /// Removes a tab without closing it, so another window can take it.
+    func detachTab(id: UUID) -> EditorTab? {
+        guard let tab = tabManager.tabs.first(where: { $0.id == id }) else { return nil }
+        tab.flushAutosave()
+        removeTab(tab, rememberClosed: false, keepAlive: true)
+        if tabManager.tabs.isEmpty {
+            // Its last tab left: the window goes away (nothing in it to save).
+            isClosingWindow = true
+            finishClosingWindow()
+        }
+        return tab
+    }
+
+    /// The tab was dropped outside every window onto something that didn't accept it.
+    func tearOffTab(id: UUID, at screenPoint: NSPoint) {
+        guard let tab = tabManager.tabs.first(where: { $0.id == id }) else { return }
+        if tabManager.tabs.count == 1 {
+            // Already alone in its window: move the window there instead.
+            window?.setFrameTopLeftPoint(NSPoint(x: screenPoint.x - 100, y: screenPoint.y + 40))
+            return
+        }
+        tab.flushAutosave()
+        removeTab(tab, rememberClosed: false, keepAlive: true)
+        app.openWindow(with: tab, cascadingFrom: self, at: screenPoint)
+    }
+
+    // MARK: - Dragging a tab to Finder / the Desktop
+
+    /// "<first line>.txt" for untitled tabs (cleaned up and shortened), or the file's own name.
+    func suggestedFileName(forTabID id: UUID) -> String {
+        guard let tab = tabManager.tabs.first(where: { $0.id == id }) else { return "Untitled.txt" }
+        if let url = tab.fileURL { return url.lastPathComponent }
+        return Self.fileName(fromFirstLineOf: tab.nsText)
+    }
+
+    static func fileName(fromFirstLineOf text: NSString, maxLength: Int = 50) -> String {
+        let firstLineEnd = text.range(of: "\n").location
+        let head = text.substring(to: min(firstLineEnd == NSNotFound ? text.length : firstLineEnd, 400))
+        // Characters Finder or other systems can't take in names, and anything invisible.
+        let forbidden = CharacterSet(charactersIn: "/:\\?%*|\"<>").union(.controlCharacters).union(.newlines)
+        var name = head.unicodeScalars.map { forbidden.contains($0) ? " " : String($0) }.joined()
+        name = name.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        while name.hasPrefix(".") { name.removeFirst() }   // no hidden files
+        if name.count > maxLength {
+            let cut = String(name.prefix(maxLength))
+            // Prefer ending at a word boundary if one is reasonably close.
+            if let space = cut.lastIndex(of: " "), cut.distance(from: cut.startIndex, to: space) >= maxLength * 2 / 3 {
+                name = String(cut[..<space])
+            } else {
+                name = cut
+            }
+        }
+        name = name.trimmingCharacters(in: .whitespaces)
+        return (name.isEmpty ? "Untitled" : name) + ".txt"
+    }
+
+    func handleTabDroppedAsFile(id: UUID, destination: URL, completion: @escaping (Error?) -> Void) {
+        guard let tab = tabManager.tabs.first(where: { $0.id == id }) else {
+            completion(CocoaError(.userCancelled))
+            return
+        }
+        let folder = destination.deletingLastPathComponent()
+        let saveFile = { [weak self] in
+            do {
+                _ = try self?.writeCopy(of: tab, into: folder, named: destination.lastPathComponent)
+                completion(nil)
+            } catch {
+                completion(error)
+                self?.showError(error, message: "“\(destination.lastPathComponent)” couldn’t be saved.")
+            }
+        }
+        let openWindow = { [weak self] in
+            // Tell Finder nothing was created, then tear the tab off next to where it was dropped.
+            completion(CocoaError(.userCancelled))
+            self?.tearOffTab(id: id, at: self?.tabManager.lastDropPoint ?? NSEvent.mouseLocation)
+        }
+
+        switch prefs.tabDropAction {
+        case .saveFile:
+            saveFile()
+        case .newWindow:
+            openWindow()
+        case .ask:
+            NSApp.activate()
+            let alert = NSAlert()
+            let place = folder.path == FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first?.path
+                ? "the Desktop" : "“\(folder.lastPathComponent)”"
+            alert.messageText = "Save “\(destination.lastPathComponent)” to \(place)?"
+            alert.informativeText = "This saves a copy of the tab as a text file. You can open the tab in its own window instead."
+            alert.addButton(withTitle: "Save File")
+            alert.addButton(withTitle: "Open in New Window")
+            alert.addButton(withTitle: "Cancel")
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = "Do this every time (change in Settings)"
+            let response = alert.runModal()
+            let remember = alert.suppressionButton?.state == .on
+            switch response {
+            case .alertFirstButtonReturn:
+                if remember { prefs.tabDropAction = .saveFile }
+                saveFile()
+            case .alertSecondButtonReturn:
+                if remember { prefs.tabDropAction = .newWindow }
+                openWindow()
+            default:
+                completion(CocoaError(.userCancelled))
+            }
+        }
+    }
+
+    /// Writes the tab's text (in its encoding and line endings) to a new file in `folder`,
+    /// adding " 2", " 3", … if the name is taken. The tab itself is not changed.
+    private func writeCopy(of tab: EditorTab, into folder: URL, named name: String) throws -> URL {
+        let data = TextFileCodec.encode(tab.text, encoding: tab.encoding, lineEnding: tab.lineEnding)
+            ?? TextFileCodec.encode(tab.text, encoding: .utf8, lineEnding: tab.lineEnding)
+            ?? Data()
+        let base = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        var url = folder.appendingPathComponent(name)
+        var n = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = folder.appendingPathComponent("\(base) \(n)").appendingPathExtension(ext.isEmpty ? "txt" : ext)
+            n += 1
+        }
+        try data.write(to: url, options: .withoutOverwriting)
+        return url
+    }
+
+    /// Opens a closed tab again in this window.
+    func reopen(_ record: ClosedTabRecord) {
+        let tab = makeTab()
+        do {
+            try tab.restoreClosed(record)
+        } catch {
+            tab.discard()
+            showError(error, message: "“\(record.fileURL?.lastPathComponent ?? "Untitled")” couldn’t be reopened.")
+            return
+        }
+        if let current = currentTab, current.isPristine {
+            removeTab(current, rememberClosed: false)
+        }
+        tabManager.tabs.append(tab)
+        selectTab(id: tab.id)
+    }
+
+    func selectTab(withFileURL url: URL) -> Bool {
+        let target = url.standardizedFileURL.resolvingSymlinksInPath()
+        guard let tab = tabManager.tabs.first(where: { $0.fileURL?.standardizedFileURL.resolvingSymlinksInPath() == target })
+        else { return false }
+        window?.makeKeyAndOrderFront(nil)
+        selectTab(id: tab.id)
+        return true
     }
 
     @objc func showNextTab(_ sender: Any?) {
@@ -281,8 +488,30 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         status.lines = "\(format(lines)) \(lines == 1 ? "line" : "lines")"
         status.characters = "\(format(length)) \(length == 1 ? "character" : "characters")"
         status.zoom = "\(prefs.zoomPercent)%"
-        status.lineEnding = tab.lineEnding.displayName
-        status.encoding = tab.encoding.displayName
+        if status.lineEnding != tab.lineEnding { status.lineEnding = tab.lineEnding }
+        if status.encoding != tab.encoding { status.encoding = tab.encoding }
+    }
+
+    // MARK: - Encoding and line endings
+
+    private func chooseEncoding(_ encoding: TextEncodingKind) {
+        guard let tab = currentTab else { return }
+        guard encoding.canEncode(tab.nsText) else {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "This text can’t be saved as \(encoding.displayName)."
+            alert.informativeText = "It contains characters that \(encoding.displayName) can’t represent. Remove them first, or keep a Unicode encoding such as UTF-8."
+            if let window { alert.beginSheetModal(for: window) } else { alert.runModal() }
+            updateStatus()
+            return
+        }
+        tab.changeEncoding(encoding)
+        updateStatus()
+    }
+
+    private func chooseLineEnding(_ ending: LineEnding) {
+        currentTab?.changeLineEnding(ending)
+        updateStatus()
     }
 
     // MARK: - Opening files
@@ -305,10 +534,8 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
     func open(urls: [URL]) {
         for rawURL in urls {
             let url = rawURL.standardizedFileURL.resolvingSymlinksInPath()
-            if let existing = tabManager.tabs.first(where: { $0.fileURL?.standardizedFileURL.resolvingSymlinksInPath() == url }) {
-                selectTab(id: existing.id)
-                continue
-            }
+            // Already open somewhere (this or another window): just show it.
+            if app.selectExistingTab(for: url) { continue }
             do {
                 let file = try EditorTab.readFile(at: url)
                 let tab: EditorTab
@@ -374,18 +601,39 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             let base = tab.title.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
             panel.nameFieldStringValue = base + ".txt"
         }
+        let options = SaveOptionsView(encoding: tab.encoding, lineEnding: tab.lineEnding)
+        panel.accessoryView = options.view
+
         panel.beginSheetModal(for: window) { [weak self] response in
             guard let self else { return }
             guard response == .OK, let url = panel.url else {
                 completion?(false)
                 return
             }
+            var encoding = options.encoding
+            if !encoding.canEncode(tab.nsText) {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "This text can’t be saved as \(encoding.displayName)."
+                alert.informativeText = "It contains characters that \(encoding.displayName) can’t represent. Save it as UTF-8 instead?"
+                alert.addButton(withTitle: "Save as UTF-8")
+                alert.addButton(withTitle: "Cancel")
+                guard alert.runModal() == .alertFirstButtonReturn else {
+                    completion?(false)
+                    return
+                }
+                encoding = .utf8
+            }
+            let previous = (tab.encoding, tab.lineEnding)
+            tab.encoding = encoding
+            tab.lineEnding = options.lineEnding
             do {
                 try tab.write(to: url)
                 RecentFiles.shared.add(url)
                 self.didSave(tab)
                 completion?(true)
             } catch {
+                (tab.encoding, tab.lineEnding) = previous
                 self.showError(error, message: "“\(url.lastPathComponent)” couldn’t be saved.")
                 completion?(false)
             }
@@ -410,6 +658,14 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         } else {
             alert.runModal()
         }
+    }
+
+    // MARK: - Printing
+
+    @objc func printTab(_ sender: Any?) {
+        guard let tab = currentTab, let window else { return }
+        let operation = PrintRenderer.operation(text: tab.text, title: tab.title, font: prefs.baseFont)
+        operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
     }
 
     // MARK: - Find & Replace
@@ -595,11 +851,11 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             item.state = prefs.showLineNumbers ? .on : .off
         case #selector(toggleWordWrap(_:)):
             item.state = prefs.wordWrap ? .on : .off
-        case #selector(showNextTab(_:)), #selector(showPreviousTab(_:)):
+        case #selector(showNextTab(_:)), #selector(showPreviousTab(_:)), #selector(moveTabToNewWindow(_:)):
             return tabManager.tabs.count > 1
         case #selector(saveAllDocuments(_:)):
             return tabManager.tabs.contains { $0.isDirty && $0.fileURL != nil }
-        case #selector(findNextMatch(_:)), #selector(findPreviousMatch(_:)):
+        case #selector(findNextMatch(_:)), #selector(findPreviousMatch(_:)), #selector(printTab(_:)):
             return currentTab != nil
         default:
             break
@@ -610,37 +866,25 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
     // MARK: - Session
 
     func scheduleSessionSave() {
-        guard !isRestoring else { return }
-        sessionSaveWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated { self?.saveSessionNow() }
-        }
-        sessionSaveWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75, execute: work)
+        app.scheduleSessionSave()
     }
 
-    private func saveSessionNow() {
-        sessionSaveWork?.cancel()
-        sessionSaveWork = nil
-        let snapshot = SessionSnapshot(tabs: tabManager.tabs.map { $0.snapshot() },
-                                       selectedID: tabManager.selectedID,
-                                       windowFrame: window?.frameDescriptor)
-        SessionStore.shared.save(snapshot)
+    func windowSnapshot() -> WindowSnapshot {
+        WindowSnapshot(tabs: tabManager.tabs.map { $0.snapshot() },
+                       selectedID: tabManager.selectedID,
+                       windowFrame: window?.frameDescriptor)
     }
 
-    /// Flush every pending autosave and write the session. Called on quit and when the app deactivates.
-    func persistEverything() {
+    var tabIDs: [UUID] { tabManager.tabs.map { $0.id } }
+
+    func flushAutosaves() {
         for tab in tabManager.tabs { tab.flushAutosave() }
-        saveSessionNow()
-        SessionStore.shared.flush()
     }
 
-    func restoreSession() {
-        isRestoring = true
-        defer { isRestoring = false }
-
-        let session = SessionStore.shared.load()
-        if let frame = session?.windowFrame, let window {
+    /// Rebuilds this window from a saved session. Returns false if none of its tabs could be restored.
+    @discardableResult
+    func restore(from snapshot: WindowSnapshot?) -> Bool {
+        if let frame = snapshot?.windowFrame, let window {
             window.setFrame(from: frame)
             let visible = NSScreen.screens.contains { $0.visibleFrame.intersects(window.frame) }
             if !visible { window.center() }
@@ -648,22 +892,22 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             window?.center()
         }
 
-        for snapshot in session?.tabs ?? [] {
-            let tab = makeTab(id: snapshot.id)
-            if tab.restore(from: snapshot) {
+        for saved in snapshot?.tabs ?? [] {
+            let tab = makeTab(id: saved.id)
+            if tab.restore(from: saved) {
                 tab.apply(preferences: prefs)
                 tabManager.tabs.append(tab)
             } else {
                 tab.discard()
             }
         }
-        if tabManager.tabs.isEmpty {
-            let tab = makeTab()
-            tabManager.tabs.append(tab)
+        let restoredAny = !tabManager.tabs.isEmpty
+        if !restoredAny {
+            tabManager.tabs.append(makeTab())
         }
-        let selected = session?.selectedID.flatMap { id in tabManager.tabs.first { $0.id == id } } ?? tabManager.tabs[0]
+        let selected = snapshot?.selectedID.flatMap { id in tabManager.tabs.first { $0.id == id } } ?? tabManager.tabs[0]
         selectTab(id: selected.id)
-        SessionStore.shared.removeOrphanedBackups(keeping: Set(tabManager.tabs.map { $0.id }))
+        return restoredAny
     }
 
     // MARK: - External file changes
@@ -675,8 +919,14 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         }
     }
 
+    func stopMonitoring() {
+        fileMonitorTimer?.invalidate()
+        fileMonitorTimer = nil
+    }
+
     func checkForExternalChanges() {
-        guard !isShowingFileChangeAlert, NSApp.isActive, let window, window.attachedSheet == nil else { return }
+        guard !isShowingFileChangeAlert, NSApp.isActive, let window, window.isKeyWindow,
+              window.attachedSheet == nil else { return }
         for tab in tabManager.tabs {
             guard let url = tab.fileURL,
                   let known = tab.knownModificationDate,
@@ -721,49 +971,101 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         }
     }
 
-    #if DEBUG
-    /// Debug-only: types sample text, logs the editor geometry and renders the window to a PNG.
-    func runDiagnostics(pngPath: String) {
-        guard let tab = currentTab, let window, let content = window.contentView else { return }
-        let tv = tab.textView
-        tv.insertText("Hello diagnostics\nSecond line", replacementRange: tv.selectedRange())
-        content.layoutSubtreeIfNeeded()
-        func d(_ name: String, _ v: NSView) {
-            print("DIAG \(name): frame=\(v.frame) hidden=\(v.isHidden) superview=\(v.superview.map { String(describing: type(of: $0)) } ?? "nil")")
-        }
-        d("content", content)
-        d("editorContainer", editorContainer)
-        d("scrollView", tab.scrollView)
-        d("clipView", tab.scrollView.contentView)
-        d("textView", tv)
-        print("DIAG firstResponder=\(String(describing: window.firstResponder))")
-        print("DIAG container=\(String(describing: tv.textContainer?.size)) tracks=\(String(describing: tv.textContainer?.widthTracksTextView)) inset=\(tv.textContainerInset)")
-        print("DIAG storageLength=\(tab.length) rulersVisible=\(tab.scrollView.rulersVisible) ruler=\(tab.ruler.frame)")
-        print("DIAG textColor=\(String(describing: tv.textColor)) font=\(String(describing: tv.font)) typing=\(tv.typingAttributes)")
-        if let tlm = tv.textLayoutManager {
-            print("DIAG viewport=\(String(describing: tlm.textViewportLayoutController.viewportRange)) usage=\(tlm.usageBoundsForTextContainer)")
-            tlm.enumerateTextLayoutFragments(from: tlm.documentRange.location, options: [.ensuresLayout]) { f in
-                print("DIAG fragment frame=\(f.layoutFragmentFrame) lines=\(f.textLineFragments.count)")
-                return true
-            }
-        }
-        if let rep = content.bitmapImageRepForCachingDisplay(in: content.bounds) {
-            content.cacheDisplay(in: content.bounds, to: rep)
-            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: pngPath))
-        }
-        fflush(stdout)
-    }
-    #endif
-
     // MARK: - NSWindowDelegate
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        // Like Windows 11 Notepad: closing the window never prompts; everything is restored next launch.
-        NSApp.terminate(nil)
+        // Last window: like Windows 11 Notepad, quit without prompting; everything comes back next launch.
+        if app.windowControllers.count <= 1 {
+            NSApp.terminate(nil)
+            return false
+        }
+        // Another window stays open, so this window's tabs really close: ask about unsaved ones.
+        closeRemainingTabs()
         return false
+    }
+
+    private func closeRemainingTabs() {
+        isClosingWindow = true
+        guard let next = tabManager.tabs.first(where: { $0.needsSavePrompt }) else {
+            for tab in tabManager.tabs { removeTab(tab, rememberClosed: true) }
+            finishClosingWindow()
+            return
+        }
+        requestCloseTab(id: next.id) { [weak self] closed in
+            guard let self else { return }
+            if closed {
+                self.closeRemainingTabs()
+            } else {
+                // Cancelled: keep the window. Make sure it isn't left without tabs.
+                self.isClosingWindow = false
+                if self.tabManager.tabs.isEmpty { self.newTab(nil) }
+            }
+        }
+    }
+
+    private func finishClosingWindow() {
+        stopMonitoring()
+        app.windowControllerDidClose(self)
+        window?.orderOut(nil)
+        window?.close()
+    }
+
+    func windowWillMove(_ notification: Notification) {
+        app.windowDragDidBegin(self)
+    }
+
+    /// Title bar plus tab bar, in screen coordinates: dropping another window here merges it in.
+    func tabStripContains(screenPoint: NSPoint) -> Bool {
+        guard let window, window.isVisible, !window.isMiniaturized else { return false }
+        let frame = window.frame
+        let titleBarHeight = frame.height - window.contentLayoutRect.height
+        let strip = NSRect(x: frame.minX, y: frame.maxY - titleBarHeight - 36, width: frame.width, height: titleBarHeight + 36)
+        return strip.contains(screenPoint)
     }
 
     func windowDidResize(_ notification: Notification) { scheduleSessionSave() }
     func windowDidMove(_ notification: Notification) { scheduleSessionSave() }
-    func windowDidBecomeKey(_ notification: Notification) { checkForExternalChanges() }
+    func windowDidBecomeKey(_ notification: Notification) {
+        app.windowControllerDidBecomeKey(self)
+        checkForExternalChanges()
+    }
+}
+
+/// Encoding and line-ending pop-ups shown at the bottom of the Save As panel.
+@MainActor
+private final class SaveOptionsView {
+    let view: NSView
+    private let encodingPopUp = NSPopUpButton()
+    private let lineEndingPopUp = NSPopUpButton()
+
+    init(encoding: TextEncodingKind, lineEnding: LineEnding) {
+        for kind in TextEncodingKind.allCases { encodingPopUp.addItem(withTitle: kind.displayName) }
+        encodingPopUp.selectItem(at: TextEncodingKind.allCases.firstIndex(of: encoding) ?? 0)
+        for ending in LineEnding.allCases { lineEndingPopUp.addItem(withTitle: ending.displayName) }
+        lineEndingPopUp.selectItem(at: LineEnding.allCases.firstIndex(of: lineEnding) ?? 0)
+
+        let grid = NSGridView(views: [
+            [NSTextField(labelWithString: "Encoding:"), encodingPopUp],
+            [NSTextField(labelWithString: "Line Endings:"), lineEndingPopUp],
+        ])
+        grid.rowSpacing = 8
+        grid.columnSpacing = 8
+        grid.column(at: 0).xPlacement = .trailing
+        grid.rowAlignment = .firstBaseline
+        grid.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = NSView()
+        container.addSubview(grid)
+        NSLayoutConstraint.activate([
+            grid.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
+            grid.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12),
+            grid.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            grid.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 20),
+        ])
+        container.frame = NSRect(origin: .zero, size: container.fittingSize)
+        view = container
+    }
+
+    var encoding: TextEncodingKind { TextEncodingKind.allCases[max(0, encodingPopUp.indexOfSelectedItem)] }
+    var lineEnding: LineEnding { LineEnding.allCases[max(0, lineEndingPopUp.indexOfSelectedItem)] }
 }

@@ -29,11 +29,30 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>A Windows 11 Notepad–style plain text editor.</string>
+	<string>© 2026 Cyber Support IT LLC. MIT License.</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/saoneill01-a11y/Better-Notepad/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>43GnpUN3ZjoW55C/yPE9pd1zLIJkmZE5Sk3WfDn5amw=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.csioly.betternotepad.tab</string>
+			<key>UTTypeDescription</key>
+			<string>Better Notepad Tab</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

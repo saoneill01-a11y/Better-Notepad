@@ -49,7 +49,7 @@ final class LineNumberRulerView: NSRulerView {
     override func draw(_ dirtyRect: NSRect) {
         let rect = dirtyRect.intersection(bounds)
         guard !rect.isEmpty else { return }
-        NSColor.textBackgroundColor.setFill()
+        Theme.editorBackground.setFill()
         rect.fill()
         drawHashMarksAndLabels(in: rect)
     }
@@ -64,7 +64,7 @@ final class LineNumberRulerView: NSRulerView {
         let length = storage.length
         let caretLine = lineIndex.lineNumber(at: min(tv.selectedRange().location, length))
 
-        let normal: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.tertiaryLabelColor]
+        let normal: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: Theme.gutterText]
         let current: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
         let editorFont = tv.font ?? font
         let defaultLineHeight = ceil(editorFont.ascender - editorFont.descender + editorFont.leading)

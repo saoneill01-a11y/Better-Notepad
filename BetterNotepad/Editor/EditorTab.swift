@@ -1,6 +1,18 @@
 import AppKit
 import Combine
 
+/// What is kept about a closed tab so ⇧⌘T can bring it back.
+struct ClosedTabRecord {
+    var fileURL: URL?
+    /// nil when the tab matched the file on disk (it is re-read from there).
+    var text: String?
+    var encoding: TextEncodingKind
+    var lineEnding: LineEnding
+    var selection: NSRange
+    var topOffset: Int
+    var knownModificationDate: Date?
+}
+
 private struct PendingViewState {
     var selections: [NSRange]
     var topOffset: Int
@@ -74,7 +86,7 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         tv.displaysLinkToolTips = false
         tv.allowsDocumentBackgroundColorChange = false
         tv.drawsBackground = true
-        tv.backgroundColor = .textBackgroundColor
+        tv.backgroundColor = Theme.editorBackground
         tv.textColor = .textColor
         tv.insertionPointColor = .textColor
         tv.textContainerInset = NSSize(width: 20, height: 6)
@@ -92,7 +104,7 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = .textBackgroundColor
+        scrollView.backgroundColor = Theme.editorBackground
         scrollView.documentView = tv
 
         let ruler = LineNumberRulerView(scrollView: scrollView, textView: tv, lineIndex: lineIndex)
@@ -158,6 +170,9 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         }
         if scrollView.rulersVisible != p.showLineNumbers {
             scrollView.rulersVisible = p.showLineNumbers
+        }
+        if textView.isContinuousSpellCheckingEnabled != p.spellCheck {
+            textView.isContinuousSpellCheckingEnabled = p.spellCheck
         }
     }
 
@@ -231,6 +246,52 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         if fileURL == nil { refreshTitle() }
         scheduleAutosave()
         onTextChange?(self)
+    }
+
+    // MARK: - Encoding and line endings
+
+    /// Changes how the tab will be written on the next save (marks it modified, like Notepad).
+    func changeEncoding(_ newEncoding: TextEncodingKind) {
+        guard newEncoding != encoding else { return }
+        encoding = newEncoding
+        noteUserEdit()
+    }
+
+    func changeLineEnding(_ newEnding: LineEnding) {
+        guard newEnding != lineEnding else { return }
+        lineEnding = newEnding
+        noteUserEdit()
+    }
+
+    // MARK: - Reopen closed tab
+
+    /// State to remember when this tab is closed, or nil if there is nothing worth reopening.
+    func closedRecord() -> ClosedTabRecord? {
+        if isPristine || (fileURL == nil && length == 0) { return nil }
+        let keepText = isDirty || fileURL == nil
+        return ClosedTabRecord(fileURL: fileURL,
+                               text: keepText ? text : nil,
+                               encoding: encoding,
+                               lineEnding: lineEnding,
+                               selection: textView.selectedRange(),
+                               topOffset: pendingViewState?.topOffset ?? topVisibleOffset(),
+                               knownModificationDate: knownModificationDate)
+    }
+
+    /// Fills a new tab from a closed-tab record. Unsaved text comes back as unsaved changes.
+    func restoreClosed(_ record: ClosedTabRecord) throws {
+        if let saved = record.text {
+            encoding = record.encoding
+            lineEnding = record.lineEnding
+            fileURL = record.fileURL
+            knownModificationDate = record.knownModificationDate
+            replaceAllText(saved)
+            noteUserEdit()
+        } else if let url = record.fileURL {
+            load(try EditorTab.readFile(at: url), from: url)
+        }
+        pendingViewState = PendingViewState(selections: [record.selection], topOffset: record.topOffset, scrollX: 0)
+        refreshTitle()
     }
 
     // MARK: - Title

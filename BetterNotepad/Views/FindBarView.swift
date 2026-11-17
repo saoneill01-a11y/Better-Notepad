@@ -81,8 +81,8 @@ struct FindBarView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .overlay(alignment: .bottom) { Divider() }
+        .background(Theme.editorColor)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.borderColor).frame(height: 1) }
         .onChange(of: state.focusToken) { _, _ in findFocused = true }
         .onAppear { findFocused = true }
     }

@@ -1,9 +1,13 @@
 name: BetterNotepad
 options:
-  bundleIdPrefix: com.betternotepad
+  bundleIdPrefix: com.csioly
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -12,6 +16,8 @@ targets:
   BetterNotepad:
     type: application
     platform: macOS
+    dependencies:
+      - package: Sparkle
     sources:
       - path: BetterNotepad
         excludes:
@@ -19,11 +25,11 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Better Notepad
-        PRODUCT_BUNDLE_IDENTIFIER: com.betternotepad.BetterNotepad
+        PRODUCT_BUNDLE_IDENTIFIER: com.csioly.betternotepad
         INFOPLIST_FILE: BetterNotepad/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: "2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"

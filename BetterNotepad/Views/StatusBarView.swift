@@ -7,8 +7,11 @@ final class StatusModel: ObservableObject {
     @Published var lines = "1 line"
     @Published var characters = "0 characters"
     @Published var zoom = "100%"
-    @Published var lineEnding = LineEnding.lf.displayName
-    @Published var encoding = TextEncodingKind.utf8.displayName
+    @Published var lineEnding = LineEnding.lf
+    @Published var encoding = TextEncodingKind.utf8
+
+    var onChooseLineEnding: ((LineEnding) -> Void)?
+    var onChooseEncoding: ((TextEncodingKind) -> Void)?
 }
 
 struct StatusBarView: View {
@@ -16,7 +19,7 @@ struct StatusBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Divider()
+            Rectangle().fill(Theme.borderColor).frame(height: 1)
             HStack(spacing: 0) {
                 cell(model.position)
                 if !model.selection.isEmpty {
@@ -30,16 +33,52 @@ struct StatusBarView: View {
                 separator
                 cell(model.zoom)
                 separator
-                cell(model.lineEnding)
+                Menu {
+                    Picker("Line Endings", selection: Binding(
+                        get: { model.lineEnding },
+                        set: { model.onChooseLineEnding?($0) })) {
+                        ForEach(LineEnding.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Text(model.lineEnding.displayName)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .padding(.horizontal, 8)
+                .help("Line endings used when saving")
                 separator
-                cell(model.encoding)
+                Menu {
+                    Picker("Encoding", selection: Binding(
+                        get: { model.encoding },
+                        set: { model.onChooseEncoding?($0) })) {
+                        ForEach(TextEncodingKind.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Text(model.encoding.displayName)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .padding(.horizontal, 8)
+                .help("Text encoding used when saving")
             }
             .padding(.horizontal, 6)
             .frame(maxHeight: .infinity)
         }
         .font(.system(size: 11).monospacedDigit())
         .foregroundStyle(.secondary)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Theme.chromeColor)
     }
 
     private func cell(_ text: String) -> some View {
@@ -50,6 +89,6 @@ struct StatusBarView: View {
     }
 
     private var separator: some View {
-        Divider().frame(height: 12)
+        Rectangle().fill(Theme.borderColor).frame(width: 1, height: 12)
     }
 }

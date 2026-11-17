@@ -7,6 +7,10 @@ final class TabManager: ObservableObject {
     @Published var tabs: [EditorTab] = []
     @Published var selectedID: UUID?
     var draggingID: UUID?
+    /// True while another window is being dragged over this window's tab bar (drop merges it here).
+    @Published var isMergeTarget = false
+    /// Screen point where the last tab drag ended (used to place a torn-off window).
+    var lastDropPoint: NSPoint?
     weak var controller: MainWindowController?
 
     var selectedTab: EditorTab? {
@@ -17,6 +21,8 @@ final class TabManager: ObservableObject {
     func select(_ id: UUID) { controller?.selectTab(id: id) }
     func close(_ id: UUID) { controller?.requestCloseTab(id: id) }
     func newTab() { controller?.newTab(nil) }
+    func moveToNewWindow(_ id: UUID) { controller?.moveTabToNewWindow(id: id) }
+
 
     func move(_ dragged: UUID, onto target: UUID) {
         guard dragged != target,
@@ -37,15 +43,11 @@ struct TabBarView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 2) {
+                HStack(alignment: .bottom, spacing: 2) {
                     ForEach(manager.tabs) { tab in
                         TabItemView(tab: tab, isSelected: tab.id == manager.selectedID, manager: manager)
                             .id(tab.id)
-                            .onDrag {
-                                manager.draggingID = tab.id
-                                return NSItemProvider(object: tab.id.uuidString as NSString)
-                            }
-                            .onDrop(of: [UTType.text], delegate: TabDropDelegate(target: tab.id, manager: manager))
+                            .onDrop(of: [.betterNotepadTab], delegate: TabDropDelegate(target: tab.id, manager: manager))
                     }
                     Button {
                         manager.newTab()
@@ -57,26 +59,45 @@ struct TabBarView: View {
                     }
                     .buttonStyle(.plain)
                     .help("New Tab (⌘T)")
+                    .padding(.bottom, 3)
                 }
                 .padding(.horizontal, 6)
-                .frame(maxHeight: .infinity)
+                .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            // Empty part of the bar: accepts tabs dragged in from another window.
+            .onDrop(of: [.betterNotepadTab], delegate: TabDropDelegate(target: nil, manager: manager))
             .onChange(of: manager.selectedID) { _, newValue in
                 if let newValue {
                     withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(newValue) }
                 }
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .overlay {
+            if manager.isMergeTarget {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.accentColor.opacity(0.12))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.accentColor, lineWidth: 2))
+                    .padding(3)
+                    .allowsHitTesting(false)
+            }
+        }
+        .background(alignment: .bottom) {
+            // Page border; the selected tab is drawn over it so it joins the page below.
+            ZStack(alignment: .bottom) {
+                Theme.chromeColor
+                Rectangle().fill(Theme.borderColor).frame(height: 1)
+            }
+        }
     }
 }
 
 private struct TabDropDelegate: DropDelegate {
-    let target: UUID
+    /// The tab this delegate sits on, or nil for the empty part of the bar.
+    let target: UUID?
     let manager: TabManager
 
     func dropEntered(info: DropInfo) {
-        guard let dragged = manager.draggingID else { return }
+        guard let dragged = manager.draggingID, let target else { return }
         withAnimation(.easeInOut(duration: 0.15)) {
             manager.move(dragged, onto: target)
         }
@@ -87,7 +108,8 @@ private struct TabDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        manager.dragEnded()
+        // Tabs from another window are moved when the drag ends (TabDragView.finishDrag).
+        if manager.draggingID != nil { manager.dragEnded() }
         return true
     }
 }
@@ -135,16 +157,30 @@ private struct TabItemView: View {
         }
         .padding(.leading, 10)
         .padding(.trailing, 6)
-        .frame(width: 190, height: 28)
-        .background(
-            RoundedRectangle(cornerRadius: 7)
-                .fill(isSelected ? Color(nsColor: .textBackgroundColor)
-                      : (hovering ? Color.primary.opacity(0.06) : Color.clear))
-                .shadow(color: .black.opacity(isSelected ? 0.12 : 0), radius: 1, y: 0.5)
-        )
+        .frame(width: 190, height: 30)
+        .padding(.bottom, 3)
+        .background(alignment: .bottom) {
+            if isSelected {
+                // Fills down to the bar's bottom edge, covering the page border there.
+                let shape = UnevenRoundedRectangle(topLeadingRadius: 7, topTrailingRadius: 7)
+                shape.fill(Theme.editorColor)
+                    .overlay(shape.strokeBorder(Theme.borderColor, lineWidth: 1).padding(.bottom, -1))
+                    .clipped()
+            } else {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(hovering ? Theme.tabHoverColor : Color.clear)
+                    .padding(.bottom, 3)
+            }
+        }
+        .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.8))
+        // Click, drag and right-click are handled in AppKit (see TabDragHandle); the close button
+        // on the right stays uncovered so SwiftUI keeps handling it.
+        .overlay(alignment: .leading) {
+            TabDragHandle(tabID: tab.id, manager: manager, toolTip: tab.fileURL?.path ?? tab.title)
+                .padding(.trailing, 28)
+                .padding(.bottom, 3)
+        }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { manager.select(tab.id) }
-        .help(tab.fileURL?.path ?? tab.title)
     }
 }

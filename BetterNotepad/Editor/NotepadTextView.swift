@@ -39,6 +39,62 @@ final class NotepadTextView: NSTextView {
         Preferences.shared.zoomPercent = 100
     }
 
+    // MARK: - Margin pointer
+
+    /// Right-pointing arrow (like Notepad) shown over the line-select margin.
+    static let lineSelectCursor: NSCursor = {
+        let arrow = NSCursor.arrow
+        let source = arrow.image
+        let size = source.size
+        let image = NSImage(size: size, flipped: false) { rect in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            ctx.translateBy(x: size.width, y: 0)
+            ctx.scaleBy(x: -1, y: 1)
+            source.draw(in: rect)
+            return true
+        }
+        return NSCursor(image: image, hotSpot: NSPoint(x: size.width - arrow.hotSpot.x, y: arrow.hotSpot.y))
+    }()
+
+    private var marginTrackingArea: NSTrackingArea?
+
+    private func isInMargin(_ event: NSEvent) -> Bool {
+        convert(event.locationInWindow, from: nil).x < leftMarginHitWidth
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let area = marginTrackingArea { removeTrackingArea(area) }
+        let rect = NSRect(x: 0, y: 0, width: leftMarginHitWidth, height: bounds.height)
+        let area = NSTrackingArea(rect: rect, options: [.cursorUpdate, .mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        marginTrackingArea = area
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        if isInMargin(event) {
+            Self.lineSelectCursor.set()
+        } else {
+            super.cursorUpdate(with: event)
+        }
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        if isInMargin(event) {
+            Self.lineSelectCursor.set()
+        } else {
+            super.mouseMoved(with: event)
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        if event.trackingArea === marginTrackingArea, !isInMargin(event) {
+            NSCursor.iBeam.set()
+        }
+    }
+
     // MARK: - Line selection
 
     override func mouseDown(with event: NSEvent) {
@@ -122,6 +178,9 @@ final class NotepadTextView: NSTextView {
             item.target = self
             menu.addItem(item)
         }
+        if isContinuousSpellCheckingEnabled {
+            addSpellingSuggestions(to: menu, for: event)
+        }
         add("Undo", #selector(undo(_:)))
         menu.addItem(.separator())
         add("Cut", #selector(cut(_:)))
@@ -131,6 +190,83 @@ final class NotepadTextView: NSTextView {
         menu.addItem(.separator())
         add("Select All", #selector(selectAll(_:)))
         return menu
+    }
+
+    // MARK: - Spelling suggestions
+
+    private struct Misspelling {
+        let range: NSRange
+        let word: String
+    }
+
+    private func misspelling(at event: NSEvent) -> Misspelling? {
+        guard let storage = textStorage, storage.length > 0 else { return nil }
+        let point = convert(event.locationInWindow, from: nil)
+        let index = characterIndexForInsertion(at: point)
+        guard index < storage.length else { return nil }
+        let wordRange = selectionRange(forProposedRange: NSRange(location: index, length: 0), granularity: .selectByWord)
+        guard wordRange.length > 0, wordRange.length < 100 else { return nil }
+        let word = storage.mutableString.substring(with: wordRange)
+        let checker = NSSpellChecker.shared
+        let bad = checker.checkSpelling(of: word, startingAt: 0, language: nil, wrap: false,
+                                        inSpellDocumentWithTag: spellCheckerDocumentTag, wordCount: nil)
+        guard bad.location != NSNotFound else { return nil }
+        return Misspelling(range: wordRange, word: word)
+    }
+
+    private func addSpellingSuggestions(to menu: NSMenu, for event: NSEvent) {
+        guard let miss = misspelling(at: event) else { return }
+        let checker = NSSpellChecker.shared
+        let guesses = checker.guesses(forWordRange: NSRange(location: 0, length: (miss.word as NSString).length),
+                                      in: miss.word, language: nil,
+                                      inSpellDocumentWithTag: spellCheckerDocumentTag) ?? []
+        if guesses.isEmpty {
+            let none = NSMenuItem(title: "No Guesses Found", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            menu.addItem(none)
+        }
+        for guess in guesses.prefix(6) {
+            let item = NSMenuItem(title: guess, action: #selector(applySpellingGuess(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = [NSValue(range: miss.range), guess] as [Any]
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        let learn = NSMenuItem(title: "Learn Spelling", action: #selector(learnWord(_:)), keyEquivalent: "")
+        learn.target = self
+        learn.representedObject = miss.word
+        menu.addItem(learn)
+        let ignore = NSMenuItem(title: "Ignore Spelling", action: #selector(ignoreWord(_:)), keyEquivalent: "")
+        ignore.target = self
+        ignore.representedObject = miss.word
+        menu.addItem(ignore)
+        menu.addItem(.separator())
+    }
+
+    @objc private func applySpellingGuess(_ sender: NSMenuItem) {
+        guard let info = sender.representedObject as? [Any],
+              let range = (info.first as? NSValue)?.rangeValue,
+              let guess = info.last as? String,
+              NSMaxRange(range) <= (textStorage?.length ?? 0) else { return }
+        insertText(guess, replacementRange: range)
+    }
+
+    @objc private func learnWord(_ sender: NSMenuItem) {
+        guard let word = sender.representedObject as? String else { return }
+        NSSpellChecker.shared.learnWord(word)
+        recheckSpelling()
+    }
+
+    @objc private func ignoreWord(_ sender: NSMenuItem) {
+        guard let word = sender.representedObject as? String else { return }
+        NSSpellChecker.shared.ignoreWord(word, inSpellDocumentWithTag: spellCheckerDocumentTag)
+        recheckSpelling()
+    }
+
+    private func recheckSpelling() {
+        // Toggling forces the visible text to be checked again.
+        isContinuousSpellCheckingEnabled = false
+        isContinuousSpellCheckingEnabled = true
     }
 
     // MARK: - Font

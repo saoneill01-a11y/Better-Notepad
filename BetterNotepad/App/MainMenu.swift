@@ -1,15 +1,19 @@
 import AppKit
+import Sparkle
 
 /// Builds the menu bar in code (no storyboard).
 @MainActor
 enum MainMenuBuilder {
-    static func build(recentMenuDelegate: NSMenuDelegate) -> NSMenu {
+    static func build(recentMenuDelegate: NSMenuDelegate, updater: SPUStandardUpdaterController) -> NSMenu {
         let main = NSMenu()
         let appName = "Better Notepad"
 
         // App menu
         let appMenu = submenu(in: main, title: appName)
         appMenu.addItem(item("About \(appName)", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
+        let updates = item("Check for Updates…", #selector(SPUStandardUpdaterController.checkForUpdates(_:)))
+        updates.target = updater
+        appMenu.addItem(updates)
         appMenu.addItem(.separator())
         appMenu.addItem(item("Settings…", #selector(AppDelegate.showSettings(_:)), ","))
         appMenu.addItem(.separator())
@@ -28,18 +32,24 @@ enum MainMenuBuilder {
         // File
         let file = submenu(in: main, title: "File")
         file.addItem(item("New Tab", #selector(MainWindowController.newTab(_:)), "t"))
+        file.addItem(item("New Window", #selector(AppDelegate.newWindow(_:)), "n", [.command, .shift]))
         file.addItem(item("Open…", #selector(AppDelegate.openDocument(_:)), "o"))
         let recentItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
         let recentMenu = NSMenu(title: "Open Recent")
         recentMenu.delegate = recentMenuDelegate
         recentItem.submenu = recentMenu
         file.addItem(recentItem)
+        file.addItem(item("Reopen Closed Tab", #selector(AppDelegate.reopenClosedTab(_:)), "t", [.command, .shift]))
         file.addItem(.separator())
         file.addItem(item("Save", #selector(MainWindowController.saveDocument(_:)), "s"))
         file.addItem(item("Save As…", #selector(MainWindowController.saveDocumentAs(_:)), "s", [.command, .shift]))
         file.addItem(item("Save All", #selector(MainWindowController.saveAllDocuments(_:)), "s", [.command, .option]))
         file.addItem(.separator())
+        file.addItem(item("Page Setup…", #selector(NSApplication.runPageLayout(_:)), "p", [.command, .shift]))
+        file.addItem(item("Print…", #selector(MainWindowController.printTab(_:)), "p"))
+        file.addItem(.separator())
         file.addItem(item("Close Tab", #selector(MainWindowController.closeTab(_:)), "w"))
+        file.addItem(item("Close Window", #selector(NSWindow.performClose(_:)), "w", [.command, .shift]))
 
         // Edit
         let edit = submenu(in: main, title: "Edit")
@@ -74,6 +84,17 @@ enum MainMenuBuilder {
         view.addItem(.separator())
         view.addItem(item("Line Numbers", #selector(MainWindowController.toggleLineNumbers(_:))))
         view.addItem(item("Word Wrap", #selector(MainWindowController.toggleWordWrap(_:))))
+        view.addItem(item("Spell Check", #selector(AppDelegate.toggleSpellCheck(_:))))
+        view.addItem(.separator())
+        let appearanceItem = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
+        let appearanceMenu = NSMenu(title: "Appearance")
+        for mode in AppearanceMode.allCases {
+            let modeItem = item(mode.title, #selector(AppDelegate.setAppearanceMode(_:)))
+            modeItem.representedObject = mode.rawValue
+            appearanceMenu.addItem(modeItem)
+        }
+        appearanceItem.submenu = appearanceMenu
+        view.addItem(appearanceItem)
         view.addItem(.separator())
         view.addItem(item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]))
 
@@ -85,11 +106,14 @@ enum MainMenuBuilder {
         // ⌘} / ⌘{ are what ⇧⌘] / ⇧⌘[ produce on a US keyboard.
         window.addItem(item("Show Next Tab", #selector(MainWindowController.showNextTab(_:)), "}"))
         window.addItem(item("Show Previous Tab", #selector(MainWindowController.showPreviousTab(_:)), "{"))
+        window.addItem(item("Move Tab to New Window", #selector(MainWindowController.moveTabToNewWindow(_:))))
         window.addItem(.separator())
         window.addItem(item("Bring All to Front", #selector(NSApplication.arrangeInFront(_:))))
         NSApp.windowsMenu = window
 
         let help = submenu(in: main, title: "Help")
+        help.addItem(item("Better Notepad Help", #selector(AppDelegate.openHelp(_:))))
+        help.addItem(item("Report a Problem…", #selector(AppDelegate.reportProblem(_:))))
         NSApp.helpMenu = help
 
         return main

@@ -15,15 +15,36 @@ struct TabSnapshot: Codable {
     var knownModificationDate: Date?
 }
 
-struct SessionSnapshot: Codable {
-    var version = 1
+struct WindowSnapshot: Codable {
     var tabs: [TabSnapshot]
     var selectedID: UUID?
     var windowFrame: String?
 }
 
+struct SessionSnapshot: Codable {
+    var version = 2
+    /// Windows front to back is not tracked; `keyWindowIndex` says which one was active.
+    var windows: [WindowSnapshot]?
+    var keyWindowIndex: Int?
+    // Version 1 (single window) fields, still read for upgrades.
+    var tabs: [TabSnapshot]?
+    var selectedID: UUID?
+    var windowFrame: String?
+
+    init(windows: [WindowSnapshot], keyWindowIndex: Int?) {
+        self.windows = windows
+        self.keyWindowIndex = keyWindowIndex
+    }
+
+    var allWindows: [WindowSnapshot] {
+        if let windows { return windows }
+        if let tabs { return [WindowSnapshot(tabs: tabs, selectedID: selectedID, windowFrame: windowFrame)] }
+        return []
+    }
+}
+
 /// Everything persisted between launches lives in ~/Library/Application Support/Better Notepad/:
-///   session.json         – tab order, selected tab, cursor/scroll state, window frame
+///   session.json         – windows, tab order, selected tab, cursor/scroll state, window frames
 ///   Unsaved/<uuid>.txt   – autosaved contents of tabs with unsaved changes (UTF-8)
 final class SessionStore: @unchecked Sendable {
     static let shared = SessionStore()

@@ -17,7 +17,9 @@ xcodebuild -project BetterNotepad.xcodeproj -scheme BetterNotepad -configuration
 BUILT="$DERIVED/Build/Products/Release/$APP_NAME"
 [[ -d "$BUILT" ]] || { echo "Build failed"; exit 1; }
 
-osascript -e 'tell application id "com.betternotepad.BetterNotepad" to quit' 2>/dev/null || true
+for id in com.csioly.betternotepad com.betternotepad.BetterNotepad; do
+  osascript -e "tell application id \"$id\" to quit" 2>/dev/null || true
+done
 sleep 1
 rm -rf "/Applications/$APP_NAME"
 ditto "$BUILT" "/Applications/$APP_NAME"

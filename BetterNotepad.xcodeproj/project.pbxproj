@@ -16,12 +16,17 @@
 		4EE8FFFF4447C7820648A57E /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F66F800B61B159E06FCC62E /* MainWindowController.swift */; };
 		5BF6769606432BEE96D3E788 /* LineIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959DAC25AD8D181FFEFB25F9 /* LineIndex.swift */; };
 		624FDD0BDF3B3A40F31BA4BD /* LineNumberRulerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87155649B860E09065B8164F /* LineNumberRulerView.swift */; };
+		6960535A6BE8E27C696DCC19 /* TabDragSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = F902C380523132475AA9128B /* TabDragSource.swift */; };
+		78D0F4B5D785B7A3F84EBF53 /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C424A220DC63D997B4DEE1 /* Diagnostics.swift */; };
 		7BA79A041BBA7534D9F4A64B /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11D61BE6A85391CBB2C308E8 /* main.swift */; };
 		7CF07A4A9218974AC8447871 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F070A63CA7219264C5EAF20B /* AppDelegate.swift */; };
+		90C8A479C6B9FB2FE434C837 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 20DF7728A3ED1566A659926B /* Sparkle */; };
 		9A7BA658E53CDF76F5FBBAC4 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DCE7BB97A94724F8421E390 /* StatusBarView.swift */; };
+		A3B60B0F751BE65507B163B0 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4607ED5561407D0244DE606C /* Theme.swift */; };
 		A99AF0DE4F43F045258C6022 /* EditorTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339D495D378E280AFCFFDA9F /* EditorTab.swift */; };
 		AF419E3C786C904628D18866 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B1A413D6668B9E262C3132 /* SettingsView.swift */; };
 		C4B290C844AEC3C3E6849DFE /* NotepadTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B3E67C7B493A1FCFAA9D47 /* NotepadTextView.swift */; };
+		CB4EAF392F89D62B8F1901E4 /* PrintRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A66150EA72D4B241B65C0DA4 /* PrintRenderer.swift */; };
 		E0EA74510E76E50E05254EC6 /* TextSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958584096D6666FA88879436 /* TextSearch.swift */; };
 		E62147CEA37842D63A810EB5 /* MainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D4F6039B4388B3A83441D36 /* MainMenu.swift */; };
 		E8101ED8D5866EBC189B2D0A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6A8DED7C95DF1823E959BCA /* Assets.xcassets */; };
@@ -34,6 +39,7 @@
 		311F98DEC3AB6D878996F774 /* RecentFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentFiles.swift; sourceTree = "<group>"; };
 		339D495D378E280AFCFFDA9F /* EditorTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorTab.swift; sourceTree = "<group>"; };
 		387CEB2BA29CCA42D3D5D9CB /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
+		4607ED5561407D0244DE606C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		47B1A413D6668B9E262C3132 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6991893C371ABB03C37A6694 /* TextFileFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFileFormat.swift; sourceTree = "<group>"; };
 		6D4F6039B4388B3A83441D36 /* MainMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenu.swift; sourceTree = "<group>"; };
@@ -44,10 +50,24 @@
 		958584096D6666FA88879436 /* TextSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSearch.swift; sourceTree = "<group>"; };
 		959DAC25AD8D181FFEFB25F9 /* LineIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineIndex.swift; sourceTree = "<group>"; };
 		9E10FF4BE40EB653F9DDF3D5 /* BetterNotepad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BetterNotepad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A66150EA72D4B241B65C0DA4 /* PrintRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintRenderer.swift; sourceTree = "<group>"; };
 		B6A8DED7C95DF1823E959BCA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B7C424A220DC63D997B4DEE1 /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
 		C88A4864E479C8BA6B99DB0E /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		F070A63CA7219264C5EAF20B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F902C380523132475AA9128B /* TabDragSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabDragSource.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C3726EF46EA4FD91D4ABFD02 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				90C8A479C6B9FB2FE434C837 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		26249F6CF23730E37DFC64A7 /* Editor */ = {
@@ -77,6 +97,7 @@
 			isa = PBXGroup;
 			children = (
 				F070A63CA7219264C5EAF20B /* AppDelegate.swift */,
+				B7C424A220DC63D997B4DEE1 /* Diagnostics.swift */,
 				11D61BE6A85391CBB2C308E8 /* main.swift */,
 				6D4F6039B4388B3A83441D36 /* MainMenu.swift */,
 			);
@@ -90,6 +111,8 @@
 				47B1A413D6668B9E262C3132 /* SettingsView.swift */,
 				6DCE7BB97A94724F8421E390 /* StatusBarView.swift */,
 				387CEB2BA29CCA42D3D5D9CB /* TabBarView.swift */,
+				F902C380523132475AA9128B /* TabDragSource.swift */,
+				4607ED5561407D0244DE606C /* Theme.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -114,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				6F66F800B61B159E06FCC62E /* MainWindowController.swift */,
+				A66150EA72D4B241B65C0DA4 /* PrintRenderer.swift */,
 			);
 			path = Window;
 			sourceTree = "<group>";
@@ -140,6 +164,7 @@
 			buildPhases = (
 				D887A821F11714476D7245C4 /* Sources */,
 				EEF02B725C25CED77C4D8EE9 /* Resources */,
+				C3726EF46EA4FD91D4ABFD02 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -147,6 +172,7 @@
 			);
 			name = BetterNotepad;
 			packageProductDependencies = (
+				20DF7728A3ED1566A659926B /* Sparkle */,
 			);
 			productName = BetterNotepad;
 			productReference = 9E10FF4BE40EB653F9DDF3D5 /* BetterNotepad.app */;
@@ -175,6 +201,9 @@
 			);
 			mainGroup = 89D607FA72EBD8EFB18F5B1E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6538DAFF4BDFB2191935BF92 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B32C8FAFC846B785A704E3C0 /* Products */;
 			projectDirPath = "";
@@ -202,6 +231,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7CF07A4A9218974AC8447871 /* AppDelegate.swift in Sources */,
+				78D0F4B5D785B7A3F84EBF53 /* Diagnostics.swift in Sources */,
 				A99AF0DE4F43F045258C6022 /* EditorTab.swift in Sources */,
 				0C2A09AD516FC3C044F66735 /* FindBarView.swift in Sources */,
 				5BF6769606432BEE96D3E788 /* LineIndex.swift in Sources */,
@@ -210,13 +240,16 @@
 				4EE8FFFF4447C7820648A57E /* MainWindowController.swift in Sources */,
 				C4B290C844AEC3C3E6849DFE /* NotepadTextView.swift in Sources */,
 				0064844E9973A9423130618B /* Preferences.swift in Sources */,
+				CB4EAF392F89D62B8F1901E4 /* PrintRenderer.swift in Sources */,
 				0FA75CDCA0478007562D8090 /* RecentFiles.swift in Sources */,
 				24D6415BCAADA1072D0BC2CF /* SessionStore.swift in Sources */,
 				AF419E3C786C904628D18866 /* SettingsView.swift in Sources */,
 				9A7BA658E53CDF76F5FBBAC4 /* StatusBarView.swift in Sources */,
 				05EAB71A9D0AF2427C8DFE48 /* TabBarView.swift in Sources */,
+				6960535A6BE8E27C696DCC19 /* TabDragSource.swift in Sources */,
 				2908B987E20EC87184748CC9 /* TextFileFormat.swift in Sources */,
 				E0EA74510E76E50E05254EC6 /* TextSearch.swift in Sources */,
+				A3B60B0F751BE65507B163B0 /* Theme.swift in Sources */,
 				7BA79A041BBA7534D9F4A64B /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -288,7 +321,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = Z6U97H9M93;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -298,9 +331,9 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
-				PRODUCT_BUNDLE_IDENTIFIER = com.betternotepad.BetterNotepad;
+				PRODUCT_BUNDLE_IDENTIFIER = com.csioly.betternotepad;
 				PRODUCT_NAME = "Better Notepad";
 				SDKROOT = macosx;
 				SWIFT_STRICT_CONCURRENCY = minimal;
@@ -377,7 +410,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
@@ -387,8 +420,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.betternotepad.BetterNotepad;
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.csioly.betternotepad;
 				PRODUCT_NAME = "Better Notepad";
 				SDKROOT = macosx;
 				SWIFT_STRICT_CONCURRENCY = minimal;
@@ -417,6 +450,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6538DAFF4BDFB2191935BF92 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		20DF7728A3ED1566A659926B /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6538DAFF4BDFB2191935BF92 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F504F136675F406E4AB121B3 /* Project object */;
 }

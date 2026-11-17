@@ -2,7 +2,7 @@ import Foundation
 
 /// Line ending style of a file. Inside the editor text is always normalized to "\n";
 /// the original style is re-applied when saving.
-enum LineEnding: String, Codable {
+enum LineEnding: String, Codable, CaseIterable {
     case lf, crlf, cr
 
     var displayName: String {
@@ -23,7 +23,7 @@ enum LineEnding: String, Codable {
 }
 
 /// Encodings Better Notepad can read and write back unchanged.
-enum TextEncodingKind: String, Codable {
+enum TextEncodingKind: String, Codable, CaseIterable {
     case utf8, utf8BOM, utf16LE, utf16BE, windows1252, latin1
 
     var displayName: String {
@@ -44,6 +44,14 @@ enum TextEncodingKind: String, Codable {
         case .utf16BE: return .utf16BigEndian
         case .windows1252: return .windowsCP1252
         case .latin1: return .isoLatin1
+        }
+    }
+
+    /// True if every character of `text` can be stored in this encoding.
+    func canEncode(_ text: NSString) -> Bool {
+        switch self {
+        case .utf8, .utf8BOM, .utf16LE, .utf16BE: return true
+        default: return text.canBeConverted(to: stringEncoding.rawValue)
         }
     }
 

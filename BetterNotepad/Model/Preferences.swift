@@ -1,6 +1,41 @@
 import AppKit
 import Combine
 
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    var appearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
+/// What happens when a tab is dropped on Finder or the Desktop.
+enum TabDropAction: String, CaseIterable, Identifiable {
+    case ask, saveFile, newWindow
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .ask: return "Ask each time"
+        case .saveFile: return "Save a .txt file there"
+        case .newWindow: return "Open the tab in a new window"
+        }
+    }
+}
+
 /// User settings, persisted in UserDefaults.
 @MainActor
 final class Preferences: ObservableObject {
@@ -13,6 +48,12 @@ final class Preferences: ObservableObject {
         static let wordWrap = "WordWrap"
         static let lineNumbers = "ShowLineNumbers"
         static let autosaveToFile = "AutosaveToFile"
+        static let keyRepeat = "KeyRepeat"
+        static let appearance = "AppearanceMode"
+        static let spellCheck = "SpellCheck"
+        static let tabDropAction = "TabDropAction"
+        /// System key: when true, holding a key shows the accent picker instead of repeating.
+        static let pressAndHold = "ApplePressAndHoldEnabled"
     }
 
     private let defaults = UserDefaults.standard
@@ -24,6 +65,23 @@ final class Preferences: ObservableObject {
     @Published var wordWrap: Bool { didSet { defaults.set(wordWrap, forKey: Keys.wordWrap) } }
     @Published var showLineNumbers: Bool { didSet { defaults.set(showLineNumbers, forKey: Keys.lineNumbers) } }
     @Published var autosaveToFile: Bool { didSet { defaults.set(autosaveToFile, forKey: Keys.autosaveToFile) } }
+    @Published var spellCheck: Bool { didSet { defaults.set(spellCheck, forKey: Keys.spellCheck) } }
+    /// Holding a letter repeats it (true) or shows the accent picker (false).
+    @Published var keyRepeat: Bool {
+        didSet {
+            defaults.set(keyRepeat, forKey: Keys.keyRepeat)
+            applyKeyRepeat()
+        }
+    }
+    @Published var tabDropAction: TabDropAction {
+        didSet { defaults.set(tabDropAction.rawValue, forKey: Keys.tabDropAction) }
+    }
+    @Published var appearanceMode: AppearanceMode {
+        didSet {
+            defaults.set(appearanceMode.rawValue, forKey: Keys.appearance)
+            applyAppearance()
+        }
+    }
 
     private init() {
         defaults.register(defaults: [
@@ -33,6 +91,10 @@ final class Preferences: ObservableObject {
             Keys.wordWrap: true,
             Keys.lineNumbers: false,
             Keys.autosaveToFile: false,
+            Keys.keyRepeat: true,
+            Keys.appearance: AppearanceMode.system.rawValue,
+            Keys.spellCheck: false,
+            Keys.tabDropAction: TabDropAction.ask.rawValue,
         ])
         fontName = defaults.string(forKey: Keys.fontName) ?? ""
         fontSize = defaults.double(forKey: Keys.fontSize)
@@ -40,8 +102,23 @@ final class Preferences: ObservableObject {
         wordWrap = defaults.bool(forKey: Keys.wordWrap)
         showLineNumbers = defaults.bool(forKey: Keys.lineNumbers)
         autosaveToFile = defaults.bool(forKey: Keys.autosaveToFile)
+        keyRepeat = defaults.bool(forKey: Keys.keyRepeat)
+        spellCheck = defaults.bool(forKey: Keys.spellCheck)
+        appearanceMode = AppearanceMode(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .system
+        tabDropAction = TabDropAction(rawValue: defaults.string(forKey: Keys.tabDropAction) ?? "") ?? .ask
         if fontSize < 4 { fontSize = 13 }
         if zoomPercent < 10 || zoomPercent > 500 { zoomPercent = 100 }
+        applyKeyRepeat()
+    }
+
+    /// Stored in the app's own defaults domain, so it only affects Better Notepad.
+    /// AppKit reads it when the app starts, so a change applies after reopening the app.
+    private func applyKeyRepeat() {
+        defaults.set(!keyRepeat, forKey: Keys.pressAndHold)
+    }
+
+    func applyAppearance() {
+        NSApp.appearance = appearanceMode.appearance
     }
 
     /// Font at 100% zoom.
@@ -62,5 +139,20 @@ final class Preferences: ObservableObject {
         // System UI fonts have private names (".AppleSystemUIFontMonospaced…") that can't be looked up later.
         fontName = font.fontName.hasPrefix(".") ? "" : font.fontName
         fontSize = Double(font.pointSize)
+    }
+
+    /// Version 1.0 used the bundle ID com.betternotepad.BetterNotepad. Copy its settings
+    /// (font, zoom, recent files, …) into the new ID's defaults once, without overwriting anything.
+    static func migrateLegacyDefaults() {
+        let marker = "MigratedLegacyDefaults"
+        let standard = UserDefaults.standard
+        guard !standard.bool(forKey: marker) else { return }
+        if let old = standard.persistentDomain(forName: "com.betternotepad.BetterNotepad") {
+            let current = Bundle.main.bundleIdentifier.flatMap { standard.persistentDomain(forName: $0) } ?? [:]
+            for (key, value) in old where current[key] == nil {
+                standard.set(value, forKey: key)
+            }
+        }
+        standard.set(true, forKey: marker)
     }
 }

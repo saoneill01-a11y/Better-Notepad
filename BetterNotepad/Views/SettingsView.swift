@@ -1,9 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Sparkle
 
 struct SettingsView: View {
     @ObservedObject var prefs = Preferences.shared
+    let updater: SPUUpdater
     @State private var defaultAppMessage = ""
+    @State private var autoCheckUpdates = false
 
     private static let monospacedFonts: [(name: String, display: String)] = {
         let manager = NSFontManager.shared
@@ -54,10 +57,46 @@ struct SettingsView: View {
             }
 
             Section("View") {
+                Picker("Appearance", selection: $prefs.appearanceMode) {
+                    ForEach(AppearanceMode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
                 Toggle("Show line numbers", isOn: $prefs.showLineNumbers)
                 Toggle("Word wrap", isOn: $prefs.wordWrap)
+                Toggle("Check spelling while typing", isOn: $prefs.spellCheck)
                 Stepper(value: $prefs.zoomPercent, in: 10...500, step: 10) {
                     Text("Zoom: \(prefs.zoomPercent)%")
+                }
+            }
+
+            Section("Tabs") {
+                Picker("Dragging a tab to Finder or the Desktop", selection: $prefs.tabDropAction) {
+                    ForEach(TabDropAction.allCases) { Text($0.title).tag($0) }
+                }
+                Text("Dropping a tab anywhere else outside the window always opens it in a new window. Saved files are named after the tab’s first line.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("Typing") {
+                Toggle("Holding a key repeats it", isOn: $prefs.keyRepeat)
+                Text("When off, holding a letter shows accented characters (é, ñ, ü) instead. Applies after you quit and reopen Better Notepad.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("Updates") {
+                Toggle("Automatically check for updates", isOn: $autoCheckUpdates)
+                    .onChange(of: autoCheckUpdates) { _, value in updater.automaticallyChecksForUpdates = value }
+                HStack {
+                    Button("Check Now") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheckForUpdates)
+                    Spacer()
+                    Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -73,7 +112,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 520)
+        .frame(width: 580, height: 780)
+        .onAppear { autoCheckUpdates = updater.automaticallyChecksForUpdates }
     }
 
     private func setAsDefault() {
