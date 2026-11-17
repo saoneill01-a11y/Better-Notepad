@@ -18,6 +18,7 @@ extension AppDelegate {
                 case "windows": self.diagWindows()
                 case "tabs": self.diagTabs(dir: env["BN_DIAG_OUT"] ?? "/tmp")
                 case "merge": self.diagMerge()
+                case "showcase": self.diagShowcase(out: env["BN_DIAG_OUT"] ?? "/tmp/bn.png", file: env["BN_DIAG_FILE"])
                 case "tabmove": self.diagTabMove()
                 case "print": self.diagPrint(out: env["BN_DIAG_OUT"] ?? "/tmp/bn.pdf")
                 default: print("DIAG unknown mode \(mode)")
@@ -193,6 +194,48 @@ extension AppDelegate {
         pump(0.3)
         if let sheet = window.attachedSheet { print("DIAG close button asked to save (expected for unsaved text)"); window.endSheet(sheet, returnCode: .alertThirdButtonReturn) }
         print("DIAG close button: tabs \(before) -> \(c.tabManager.tabs.count)")
+    }
+
+    /// Window with realistic content for the website screenshot.
+    private func diagShowcase(out: String, file: String?) {
+        guard let c = activeController, let window = c.window else { return }
+        window.setFrame(NSRect(x: 100, y: 200, width: 1080, height: 520), display: true)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        let notes = """
+        Office IT checklist – November
+
+        This week
+        - Renew the firewall subscription (quote due Friday)
+        - Set up 3 new laptops for the front desk
+        - Test restoring last week's backup of the shared drive
+        - Replace the toner in the upstairs printer
+
+        Next week
+        1. Update all Macs to the latest macOS
+        2. Review who still has access to the old file server
+        3. Move the guest Wi-Fi to its own network
+
+        Notes
+        Backups ran every night this month with no errors.
+        The upstairs access point drops out around 3 PM; check the channel.
+        """
+        c.currentTab?.textView.insertText(notes, replacementRange: NSRange(location: 0, length: 0))
+        let notesID = c.currentTab!.id
+        if let file { c.open(urls: [URL(fileURLWithPath: file)]) }
+        c.newTab(nil)
+        c.currentTab?.textView.insertText("Grocery list\nCoffee\nOat milk\nApples", replacementRange: NSRange(location: 0, length: 0))
+        c.selectTab(id: notesID)
+        let tv = c.currentTab!.textView
+        let caret = (tv.string as NSString).range(of: "quote due Friday").location
+        tv.setSelectedRange(NSRange(location: caret + 16, length: 0))
+        c.updateStatus()
+        pump(0.6)
+        guard let frameView = window.contentView?.superview,
+              let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { return }
+        frameView.cacheDisplay(in: frameView.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: out))
+        print("DIAG showcase \(rep.pixelsWide)x\(rep.pixelsHigh) -> \(out)")
     }
 
     private func diagTabMove() {
