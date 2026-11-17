@@ -1,0 +1,421 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0064844E9973A9423130618B /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88A4864E479C8BA6B99DB0E /* Preferences.swift */; };
+		05EAB71A9D0AF2427C8DFE48 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387CEB2BA29CCA42D3D5D9CB /* TabBarView.swift */; };
+		0C2A09AD516FC3C044F66735 /* FindBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EC62702161EA179A4D29739 /* FindBarView.swift */; };
+		0FA75CDCA0478007562D8090 /* RecentFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311F98DEC3AB6D878996F774 /* RecentFiles.swift */; };
+		24D6415BCAADA1072D0BC2CF /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2109193A4F602BC83B8B12F5 /* SessionStore.swift */; };
+		2908B987E20EC87184748CC9 /* TextFileFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6991893C371ABB03C37A6694 /* TextFileFormat.swift */; };
+		4EE8FFFF4447C7820648A57E /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F66F800B61B159E06FCC62E /* MainWindowController.swift */; };
+		5BF6769606432BEE96D3E788 /* LineIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959DAC25AD8D181FFEFB25F9 /* LineIndex.swift */; };
+		624FDD0BDF3B3A40F31BA4BD /* LineNumberRulerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87155649B860E09065B8164F /* LineNumberRulerView.swift */; };
+		7BA79A041BBA7534D9F4A64B /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11D61BE6A85391CBB2C308E8 /* main.swift */; };
+		7CF07A4A9218974AC8447871 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F070A63CA7219264C5EAF20B /* AppDelegate.swift */; };
+		9A7BA658E53CDF76F5FBBAC4 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DCE7BB97A94724F8421E390 /* StatusBarView.swift */; };
+		A99AF0DE4F43F045258C6022 /* EditorTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339D495D378E280AFCFFDA9F /* EditorTab.swift */; };
+		AF419E3C786C904628D18866 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B1A413D6668B9E262C3132 /* SettingsView.swift */; };
+		C4B290C844AEC3C3E6849DFE /* NotepadTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B3E67C7B493A1FCFAA9D47 /* NotepadTextView.swift */; };
+		E0EA74510E76E50E05254EC6 /* TextSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958584096D6666FA88879436 /* TextSearch.swift */; };
+		E62147CEA37842D63A810EB5 /* MainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D4F6039B4388B3A83441D36 /* MainMenu.swift */; };
+		E8101ED8D5866EBC189B2D0A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6A8DED7C95DF1823E959BCA /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		11D61BE6A85391CBB2C308E8 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		2109193A4F602BC83B8B12F5 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		28B3E67C7B493A1FCFAA9D47 /* NotepadTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotepadTextView.swift; sourceTree = "<group>"; };
+		311F98DEC3AB6D878996F774 /* RecentFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentFiles.swift; sourceTree = "<group>"; };
+		339D495D378E280AFCFFDA9F /* EditorTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorTab.swift; sourceTree = "<group>"; };
+		387CEB2BA29CCA42D3D5D9CB /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
+		47B1A413D6668B9E262C3132 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6991893C371ABB03C37A6694 /* TextFileFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFileFormat.swift; sourceTree = "<group>"; };
+		6D4F6039B4388B3A83441D36 /* MainMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenu.swift; sourceTree = "<group>"; };
+		6DCE7BB97A94724F8421E390 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
+		6F66F800B61B159E06FCC62E /* MainWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowController.swift; sourceTree = "<group>"; };
+		7EC62702161EA179A4D29739 /* FindBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindBarView.swift; sourceTree = "<group>"; };
+		87155649B860E09065B8164F /* LineNumberRulerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineNumberRulerView.swift; sourceTree = "<group>"; };
+		958584096D6666FA88879436 /* TextSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSearch.swift; sourceTree = "<group>"; };
+		959DAC25AD8D181FFEFB25F9 /* LineIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineIndex.swift; sourceTree = "<group>"; };
+		9E10FF4BE40EB653F9DDF3D5 /* BetterNotepad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BetterNotepad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B6A8DED7C95DF1823E959BCA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C88A4864E479C8BA6B99DB0E /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
+		F070A63CA7219264C5EAF20B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		26249F6CF23730E37DFC64A7 /* Editor */ = {
+			isa = PBXGroup;
+			children = (
+				339D495D378E280AFCFFDA9F /* EditorTab.swift */,
+				87155649B860E09065B8164F /* LineNumberRulerView.swift */,
+				28B3E67C7B493A1FCFAA9D47 /* NotepadTextView.swift */,
+			);
+			path = Editor;
+			sourceTree = "<group>";
+		};
+		4C9CDAC7705744809FF2A0BC /* BetterNotepad */ = {
+			isa = PBXGroup;
+			children = (
+				B6A8DED7C95DF1823E959BCA /* Assets.xcassets */,
+				6916F1FF0ABEB7D7E48A1736 /* App */,
+				26249F6CF23730E37DFC64A7 /* Editor */,
+				DA0C95A52B8E45C48E3C8D32 /* Model */,
+				6C22AE3C0244FF8BE824ED9C /* Views */,
+				D58FC2A9685AC1E9A5826425 /* Window */,
+			);
+			path = BetterNotepad;
+			sourceTree = "<group>";
+		};
+		6916F1FF0ABEB7D7E48A1736 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F070A63CA7219264C5EAF20B /* AppDelegate.swift */,
+				11D61BE6A85391CBB2C308E8 /* main.swift */,
+				6D4F6039B4388B3A83441D36 /* MainMenu.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		6C22AE3C0244FF8BE824ED9C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				7EC62702161EA179A4D29739 /* FindBarView.swift */,
+				47B1A413D6668B9E262C3132 /* SettingsView.swift */,
+				6DCE7BB97A94724F8421E390 /* StatusBarView.swift */,
+				387CEB2BA29CCA42D3D5D9CB /* TabBarView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		89D607FA72EBD8EFB18F5B1E = {
+			isa = PBXGroup;
+			children = (
+				4C9CDAC7705744809FF2A0BC /* BetterNotepad */,
+				B32C8FAFC846B785A704E3C0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B32C8FAFC846B785A704E3C0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9E10FF4BE40EB653F9DDF3D5 /* BetterNotepad.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D58FC2A9685AC1E9A5826425 /* Window */ = {
+			isa = PBXGroup;
+			children = (
+				6F66F800B61B159E06FCC62E /* MainWindowController.swift */,
+			);
+			path = Window;
+			sourceTree = "<group>";
+		};
+		DA0C95A52B8E45C48E3C8D32 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				959DAC25AD8D181FFEFB25F9 /* LineIndex.swift */,
+				C88A4864E479C8BA6B99DB0E /* Preferences.swift */,
+				311F98DEC3AB6D878996F774 /* RecentFiles.swift */,
+				2109193A4F602BC83B8B12F5 /* SessionStore.swift */,
+				6991893C371ABB03C37A6694 /* TextFileFormat.swift */,
+				958584096D6666FA88879436 /* TextSearch.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E60115B4CE7F4C4F70111B50 /* BetterNotepad */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C548B8217161407E433BFB3E /* Build configuration list for PBXNativeTarget "BetterNotepad" */;
+			buildPhases = (
+				D887A821F11714476D7245C4 /* Sources */,
+				EEF02B725C25CED77C4D8EE9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BetterNotepad;
+			packageProductDependencies = (
+			);
+			productName = BetterNotepad;
+			productReference = 9E10FF4BE40EB653F9DDF3D5 /* BetterNotepad.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F504F136675F406E4AB121B3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					E60115B4CE7F4C4F70111B50 = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = EFB807B9FB48CA7C0A78B25C /* Build configuration list for PBXProject "BetterNotepad" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 89D607FA72EBD8EFB18F5B1E;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B32C8FAFC846B785A704E3C0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E60115B4CE7F4C4F70111B50 /* BetterNotepad */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EEF02B725C25CED77C4D8EE9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E8101ED8D5866EBC189B2D0A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D887A821F11714476D7245C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7CF07A4A9218974AC8447871 /* AppDelegate.swift in Sources */,
+				A99AF0DE4F43F045258C6022 /* EditorTab.swift in Sources */,
+				0C2A09AD516FC3C044F66735 /* FindBarView.swift in Sources */,
+				5BF6769606432BEE96D3E788 /* LineIndex.swift in Sources */,
+				624FDD0BDF3B3A40F31BA4BD /* LineNumberRulerView.swift in Sources */,
+				E62147CEA37842D63A810EB5 /* MainMenu.swift in Sources */,
+				4EE8FFFF4447C7820648A57E /* MainWindowController.swift in Sources */,
+				C4B290C844AEC3C3E6849DFE /* NotepadTextView.swift in Sources */,
+				0064844E9973A9423130618B /* Preferences.swift in Sources */,
+				0FA75CDCA0478007562D8090 /* RecentFiles.swift in Sources */,
+				24D6415BCAADA1072D0BC2CF /* SessionStore.swift in Sources */,
+				AF419E3C786C904628D18866 /* SettingsView.swift in Sources */,
+				9A7BA658E53CDF76F5FBBAC4 /* StatusBarView.swift in Sources */,
+				05EAB71A9D0AF2427C8DFE48 /* TabBarView.swift in Sources */,
+				2908B987E20EC87184748CC9 /* TextFileFormat.swift in Sources */,
+				E0EA74510E76E50E05254EC6 /* TextSearch.swift in Sources */,
+				7BA79A041BBA7534D9F4A64B /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		07DFC7CE4DE03D1962271114 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		62A1EB23056DE568F27386E8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z6U97H9M93;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BetterNotepad/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_CODE_SIGN_FLAGS = "--timestamp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.betternotepad.BetterNotepad;
+				PRODUCT_NAME = "Better Notepad";
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+			};
+			name = Release;
+		};
+		B469ECFB85A89743B268BE89 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		EA1E9FB04B037A604670072B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BetterNotepad/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.betternotepad.BetterNotepad;
+				PRODUCT_NAME = "Better Notepad";
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C548B8217161407E433BFB3E /* Build configuration list for PBXNativeTarget "BetterNotepad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EA1E9FB04B037A604670072B /* Debug */,
+				62A1EB23056DE568F27386E8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EFB807B9FB48CA7C0A78B25C /* Build configuration list for PBXProject "BetterNotepad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B469ECFB85A89743B268BE89 /* Debug */,
+				07DFC7CE4DE03D1962271114 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F504F136675F406E4AB121B3 /* Project object */;
+}
