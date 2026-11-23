@@ -11,6 +11,8 @@ struct ClosedTabRecord {
     var selection: NSRange
     var topOffset: Int
     var knownModificationDate: Date?
+    var markdown = false
+    var preview = false
 }
 
 private struct PendingViewState {
@@ -38,6 +40,17 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
     let lineIndex = LineIndex()
     private(set) var ruler: LineNumberRulerView!
     let tabUndoManager = UndoManager()
+    /// What the window shows for this tab: the editor, with the Markdown preview beside it when on.
+    let rootView = NSSplitView()
+
+    /// Markdown formatting is drawn in the editor (the text itself stays plain Markdown).
+    @Published private(set) var markdownEnabled = false
+    /// The rendered preview pane is showing beside the editor.
+    @Published private(set) var previewVisible = false
+    var onMarkdownModeChange: ((EditorTab) -> Void)?
+    private var preview: MarkdownPreviewView?
+    private var previewWork: DispatchWorkItem?
+    private var fenceCount = 0
 
     var onTextChange: ((EditorTab) -> Void)?
     var onSelectionChange: ((EditorTab) -> Void)?
@@ -98,6 +111,10 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         tv.frame = NSRect(origin: .zero, size: scrollView.contentSize)
         tv.textContainer?.widthTracksTextView = true
         tv.onEscape = { [weak self] in self?.onEscape?() }
+        tv.markdownClick = { [weak self] index, modifiers in
+            guard let self, self.markdownEnabled else { return false }
+            return self.handleMarkdownClick(at: index, modifiers: modifiers)
+        }
 
         scrollView.borderType = .noBorder
         scrollView.hasVerticalScroller = true
@@ -113,8 +130,18 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         scrollView.hasVerticalRuler = true
         scrollView.rulersVisible = false
 
+        rootView.isVertical = true
+        rootView.dividerStyle = .thin
+        rootView.addArrangedSubview(scrollView)
+        rootView.setHoldingPriority(.defaultLow, forSubviewAt: 0)
+
         let nc = NotificationCenter.default
         if let storage = tv.textStorage {
+            // Markdown styling is applied while the edit is processed, so it is drawn in the same pass.
+            observers.append(nc.addObserver(forName: NSTextStorage.willProcessEditingNotification,
+                                            object: storage, queue: nil) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textStorageWillProcessEditing() }
+            })
             observers.append(nc.addObserver(forName: NSTextStorage.didProcessEditingNotification,
                                             object: storage, queue: nil) { [weak self] _ in
                 MainActor.assumeIsolated { self?.textStorageDidProcessEditing() }
@@ -163,6 +190,7 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
                 storage.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: storage.length))
             }
             ruler.font = NSFont.monospacedDigitSystemFont(ofSize: max(8, (font.pointSize * 0.9).rounded()), weight: .regular)
+            if markdownEnabled { restyleAll() }
         }
         if appliedWrap != p.wordWrap {
             appliedWrap = p.wordWrap
@@ -221,6 +249,13 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         noteUserEdit()
     }
 
+    func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if markdownEnabled, commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            return continueListOnReturn()
+        }
+        return false
+    }
+
     func textViewDidChangeSelection(_ notification: Notification) {
         ruler.needsDisplay = true
         onSelectionChange?(self)
@@ -234,8 +269,25 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         ruler.needsDisplay = true
     }
 
+    private func textStorageWillProcessEditing() {
+        guard markdownEnabled, let storage = textView.textStorage, storage.editedMask.contains(.editedCharacters),
+              storage.length <= MarkdownStyler.maxStyledLength else { return }
+        let text = storage.mutableString
+        var range = storage.editedRange
+        let count = MarkdownStyler.fenceCount(in: text)
+        if count != fenceCount {
+            // A code fence opened or closed: everything below may have changed.
+            let start = text.paragraphRange(for: NSRange(location: min(range.location, text.length), length: 0)).location
+            range = NSRange(location: start, length: text.length - start)
+            fenceCount = count
+        }
+        MarkdownStyler.style(storage, range: range, base: appliedFont ?? Preferences.shared.editorFont,
+                             paragraph: textView.defaultParagraphStyle)
+    }
+
     private func scrollDidChange() {
         ruler.needsDisplay = true
+        if previewVisible { syncPreviewScroll() }
         if pendingViewState == nil { onViewStateChange?(self) }
     }
 
@@ -245,7 +297,91 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         if !isDirty { isDirty = true }
         if fileURL == nil { refreshTitle() }
         scheduleAutosave()
+        if previewVisible { schedulePreviewUpdate() }
         onTextChange?(self)
+    }
+
+    // MARK: - Markdown
+
+    func setMarkdownEnabled(_ on: Bool) {
+        guard on != markdownEnabled else { return }
+        markdownEnabled = on
+        restyleAll()
+        if !on, previewVisible { setPreviewVisible(false) }
+        if fileURL == nil { refreshTitle() }
+        onMarkdownModeChange?(self)
+    }
+
+    /// Showing the preview also turns Markdown formatting on.
+    func setPreviewVisible(_ on: Bool) {
+        guard on != previewVisible else { return }
+        if on, !markdownEnabled {
+            markdownEnabled = true
+            restyleAll()
+        }
+        previewVisible = on
+        if on {
+            let view = MarkdownPreviewView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
+            preview = view
+            rootView.addArrangedSubview(view)
+            rootView.layoutSubtreeIfNeeded()
+            rootView.setPosition((rootView.bounds.width / 2).rounded(), ofDividerAt: 0)
+            updatePreviewNow()
+        } else {
+            previewWork?.cancel()
+            preview?.removeFromSuperview()
+            preview = nil
+        }
+        onMarkdownModeChange?(self)
+    }
+
+    /// Re-applies (or removes) Markdown formatting over the whole document.
+    func restyleAll() {
+        guard let storage = textView.textStorage else { return }
+        let font = appliedFont ?? Preferences.shared.editorFont
+        let paragraph = textView.defaultParagraphStyle
+        storage.beginEditing()
+        if markdownEnabled, storage.length <= MarkdownStyler.maxStyledLength {
+            fenceCount = MarkdownStyler.fenceCount(in: storage.mutableString)
+            MarkdownStyler.style(storage, range: NSRange(location: 0, length: storage.length), base: font, paragraph: paragraph)
+        } else {
+            MarkdownStyler.clear(storage, base: font, paragraph: paragraph)
+        }
+        storage.endEditing()
+        textView.typingAttributes = typingAttributes(font: font, paragraph: paragraph)
+        ruler.needsDisplay = true
+    }
+
+    private func schedulePreviewUpdate() {
+        previewWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.updatePreviewNow() }
+        }
+        previewWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
+    func updatePreviewNow() {
+        previewWork?.cancel()
+        previewWork = nil
+        guard let preview else { return }
+        preview.update(markdown: text, baseURL: fileURL?.deletingLastPathComponent())
+        syncPreviewScroll()
+    }
+
+    private func syncPreviewScroll() {
+        guard let preview else { return }
+        let clip = scrollView.contentView.bounds
+        let total = textView.frame.height - clip.height
+        preview.scroll(toFraction: total > 0 ? clip.minY / total : 0)
+    }
+
+    /// Markdown on by default for .md files (Settings can turn that off).
+    private func applyDefaultMarkdownMode(for url: URL?) {
+        let prefs = Preferences.shared
+        let markdown = prefs.markdownForMarkdownFiles && MarkdownFiles.isMarkdown(url)
+        setMarkdownEnabled(markdown)
+        setPreviewVisible(markdown && prefs.markdownPreviewByDefault)
     }
 
     // MARK: - Encoding and line endings
@@ -275,7 +411,9 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
                                lineEnding: lineEnding,
                                selection: textView.selectedRange(),
                                topOffset: pendingViewState?.topOffset ?? topVisibleOffset(),
-                               knownModificationDate: knownModificationDate)
+                               knownModificationDate: knownModificationDate,
+                               markdown: markdownEnabled,
+                               preview: previewVisible)
     }
 
     /// Fills a new tab from a closed-tab record. Unsaved text comes back as unsaved changes.
@@ -290,6 +428,8 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         } else if let url = record.fileURL {
             load(try EditorTab.readFile(at: url), from: url)
         }
+        setMarkdownEnabled(record.markdown)
+        setPreviewVisible(record.preview)
         pendingViewState = PendingViewState(selections: [record.selection], topOffset: record.topOffset, scrollX: 0)
         refreshTitle()
     }
@@ -311,6 +451,7 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
                 first = ns.substring(with: NSRange(location: 0, length: min(r.length, lineEnd)))
                     .trimmingCharacters(in: .whitespaces)
             }
+            if markdownEnabled { first = MarkdownFiles.plainTitle(first) }
             newTitle = first.isEmpty ? "Untitled" : first
         }
         if newTitle != title { title = newTitle }
@@ -336,12 +477,16 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         let font = appliedFont ?? Preferences.shared.editorFont
         let attrs = typingAttributes(font: font, paragraph: textView.defaultParagraphStyle)
         textView.textStorage?.setAttributedString(NSAttributedString(string: s, attributes: attrs))
+        if markdownEnabled { restyleAll() }
+        if previewVisible { updatePreviewNow() }
         textView.setSelectedRange(NSRange(location: 0, length: 0))
         tabUndoManager.removeAllActions()
         ruler.needsDisplay = true
     }
 
-    func load(_ file: LoadedFile, from url: URL) {
+    /// `decideMarkdown`: pick Markdown mode from the file type (false when reloading the same file).
+    func load(_ file: LoadedFile, from url: URL, decideMarkdown: Bool = true) {
+        if decideMarkdown { applyDefaultMarkdownMode(for: url) }
         encoding = file.decoded.encoding
         lineEnding = file.decoded.lineEnding
         fileURL = url
@@ -364,7 +509,7 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         let file = try EditorTab.readFile(at: url)
         let selection = textView.selectedRange()
         let scroll = scrollView.contentView.bounds.origin
-        load(file, from: url)
+        load(file, from: url, decideMarkdown: false)
         textView.setSelectedRange(NSRange(location: min(selection.location, length), length: 0))
         textView.scroll(scroll)
         onViewStateChange?(self)
@@ -472,7 +617,9 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
                            selections: selections.map { [$0.location, $0.length] },
                            topOffset: top,
                            scrollX: Double(scrollX),
-                           knownModificationDate: knownModificationDate)
+                           knownModificationDate: knownModificationDate,
+                           markdown: markdownEnabled,
+                           preview: previewVisible)
     }
 
     /// Restores content from the autosave store or from disk. Returns false if nothing could be restored.
@@ -492,6 +639,12 @@ final class EditorTab: NSObject, ObservableObject, Identifiable, NSTextViewDeleg
         } else {
             encoding = s.encoding
             lineEnding = s.lineEnding
+        }
+        if let markdown = s.markdown {
+            setMarkdownEnabled(markdown)
+            setPreviewVisible(s.preview ?? false)
+        } else if s.hasBackup {
+            applyDefaultMarkdownMode(for: url)   // sessions saved before 1.2
         }
         editGeneration = 0
         persistedGeneration = 0

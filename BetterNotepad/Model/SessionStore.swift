@@ -13,6 +13,9 @@ struct TabSnapshot: Codable {
     var topOffset: Int
     var scrollX: Double
     var knownModificationDate: Date?
+    /// Markdown formatting and preview (nil in sessions saved before 1.2).
+    var markdown: Bool?
+    var preview: Bool?
 }
 
 struct WindowSnapshot: Codable {

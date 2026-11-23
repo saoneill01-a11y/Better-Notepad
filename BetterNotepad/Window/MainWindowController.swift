@@ -13,6 +13,8 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
     private let prefs = Preferences.shared
     private let editorContainer = NSView()
     private var findBarHost: NSHostingView<FindBarView>!
+    private var markdownBarHost: NSHostingView<MarkdownToolbarView>!
+    let markdownBar = MarkdownBarState()
     private var cancellables = Set<AnyCancellable>()
     private var fileMonitorTimer: Timer?
     private var isShowingFileChangeAlert = false
@@ -72,7 +74,12 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         let statusHost = NSHostingView(rootView: StatusBarView(model: status))
         statusHost.sizingOptions = []
 
-        let views: [NSView] = [tabBar, findHost, editorContainer, statusHost]
+        let markdownHost = NSHostingView(rootView: MarkdownToolbarView(state: markdownBar))
+        markdownHost.sizingOptions = []
+        markdownHost.isHidden = true
+        markdownBarHost = markdownHost
+
+        let views: [NSView] = [tabBar, findHost, markdownHost, editorContainer, statusHost]
         let stack = NSStackView(views: views)
         stack.orientation = .vertical
         stack.spacing = 0
@@ -89,6 +96,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             tabBar.heightAnchor.constraint(equalToConstant: 36),
             statusHost.heightAnchor.constraint(equalToConstant: 24),
+            markdownHost.heightAnchor.constraint(equalToConstant: 34),
         ])
         for v in views {
             v.translatesAutoresizingMaskIntoConstraints = false
@@ -120,11 +128,26 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
 
         status.onChooseEncoding = { [weak self] in self?.chooseEncoding($0) }
         status.onChooseLineEnding = { [weak self] in self?.chooseLineEnding($0) }
+        status.onChooseMarkdown = { [weak self] on in self?.currentTab?.setMarkdownEnabled(on) }
+
+        markdownBar.onCommand = { [weak self] command in self?.performMarkdown(command) }
+        markdownBar.onTogglePreview = { [weak self] in self?.toggleMarkdownPreview(nil) }
+        markdownBar.onTurnOff = { [weak self] in self?.currentTab?.setMarkdownEnabled(false) }
     }
 
     private func preferencesChanged() {
         for tab in tabManager.tabs { tab.apply(preferences: prefs) }
         updateStatus()
+        updateMarkdownBar()
+    }
+
+    /// Shows the formatting toolbar for Markdown tabs and keeps its Preview button in step.
+    private func updateMarkdownBar() {
+        let tab = currentTab
+        let show = (tab?.markdownEnabled ?? false) && prefs.showMarkdownToolbar
+        if markdownBarHost.isHidden == show { markdownBarHost.isHidden = !show }
+        let preview = tab?.previewVisible ?? false
+        if markdownBar.previewVisible != preview { markdownBar.previewVisible = preview }
     }
 
     // MARK: - Tabs
@@ -144,14 +167,22 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             if tab === self?.currentTab { self?.updateWindowTitle() }
         }
         tab.onEscape = { [weak self] in self?.hideFindBar() }
+        tab.onMarkdownModeChange = { [weak self] tab in
+            guard let self else { return }
+            if tab === self.currentTab {
+                self.updateMarkdownBar()
+                self.updateStatus()
+            }
+            self.scheduleSessionSave()
+        }
         tab.apply(preferences: prefs)
     }
 
     func selectTab(id: UUID) {
         guard let tab = tabManager.tabs.first(where: { $0.id == id }) else { return }
-        if tab.scrollView.superview !== editorContainer {
+        if tab.rootView.superview !== editorContainer {
             editorContainer.subviews.forEach { $0.removeFromSuperview() }
-            let sv = tab.scrollView
+            let sv = tab.rootView
             sv.removeFromSuperview()
             sv.translatesAutoresizingMaskIntoConstraints = false
             editorContainer.addSubview(sv)
@@ -168,6 +199,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         window?.initialFirstResponder = tab.textView
         updateWindowTitle()
         updateStatus()
+        updateMarkdownBar()
         if tab.hasPendingViewState {
             DispatchQueue.main.async { [weak tab] in tab?.applyPendingViewStateIfNeeded() }
         }
@@ -251,7 +283,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             app.rememberClosedTab(record)
         }
         if !keepAlive { tab.discard() }
-        tab.scrollView.removeFromSuperview()
+        tab.rootView.removeFromSuperview()
         tabManager.tabs.remove(at: index)
         if wasSelected, !tabManager.tabs.isEmpty {
             selectTab(id: tabManager.tabs[min(index, tabManager.tabs.count - 1)].id)
@@ -302,6 +334,10 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
     func suggestedFileName(forTabID id: UUID) -> String {
         guard let tab = tabManager.tabs.first(where: { $0.id == id }) else { return "Untitled.txt" }
         if let url = tab.fileURL { return url.lastPathComponent }
+        if tab.markdownEnabled {
+            let name = Self.fileName(fromFirstLineOf: MarkdownFiles.plainTitle(tab.title) as NSString)
+            return (name as NSString).deletingPathExtension + ".md"
+        }
         return Self.fileName(fromFirstLineOf: tab.nsText)
     }
 
@@ -490,6 +526,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         status.zoom = "\(prefs.zoomPercent)%"
         if status.lineEnding != tab.lineEnding { status.lineEnding = tab.lineEnding }
         if status.encoding != tab.encoding { status.encoding = tab.encoding }
+        if status.isMarkdown != tab.markdownEnabled { status.isMarkdown = tab.markdownEnabled }
     }
 
     // MARK: - Encoding and line endings
@@ -599,7 +636,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             panel.nameFieldStringValue = url.lastPathComponent
         } else {
             let base = tab.title.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
-            panel.nameFieldStringValue = base + ".txt"
+            panel.nameFieldStringValue = base + (tab.markdownEnabled ? ".md" : ".txt")
         }
         let options = SaveOptionsView(encoding: tab.encoding, lineEnding: tab.lineEnding)
         panel.accessoryView = options.view
@@ -629,6 +666,8 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             tab.lineEnding = options.lineEnding
             do {
                 try tab.write(to: url)
+                // Saving as .md turns formatting on; saving a Markdown tab as .txt leaves it as it was.
+                if MarkdownFiles.isMarkdown(url), self.prefs.markdownForMarkdownFiles { tab.setMarkdownEnabled(true) }
                 RecentFiles.shared.add(url)
                 self.didSave(tab)
                 completion?(true)
@@ -660,11 +699,45 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
         }
     }
 
+    // MARK: - Markdown
+
+    @objc func toggleMarkdown(_ sender: Any?) {
+        guard let tab = currentTab else { return }
+        tab.setMarkdownEnabled(!tab.markdownEnabled)
+    }
+
+    @objc func toggleMarkdownPreview(_ sender: Any?) {
+        guard let tab = currentTab else { return }
+        tab.setPreviewVisible(!tab.previewVisible)
+        window?.makeFirstResponder(tab.textView)
+    }
+
+    private func performMarkdown(_ command: MarkdownCommand) {
+        guard let tab = currentTab, tab.markdownEnabled else { return }
+        window?.makeFirstResponder(tab.textView)
+        tab.perform(command)
+    }
+
+    @objc func formatBold(_ sender: Any?) { performMarkdown(.bold) }
+    @objc func formatItalic(_ sender: Any?) { performMarkdown(.italic) }
+    @objc func formatStrikethrough(_ sender: Any?) { performMarkdown(.strikethrough) }
+    @objc func formatCode(_ sender: Any?) { performMarkdown(.code) }
+    @objc func formatLink(_ sender: Any?) { performMarkdown(.link) }
+    @objc func formatBulletList(_ sender: Any?) { performMarkdown(.bulletList) }
+    @objc func formatNumberedList(_ sender: Any?) { performMarkdown(.numberedList) }
+    @objc func formatChecklist(_ sender: Any?) { performMarkdown(.checklist) }
+    @objc func formatQuote(_ sender: Any?) { performMarkdown(.quote) }
+    /// Menu item tag is the heading level (0 = normal text).
+    @objc func formatHeading(_ sender: Any?) {
+        performMarkdown(.heading((sender as? NSMenuItem)?.tag ?? 0))
+    }
+
     // MARK: - Printing
 
     @objc func printTab(_ sender: Any?) {
         guard let tab = currentTab, let window else { return }
-        let operation = PrintRenderer.operation(text: tab.text, title: tab.title, font: prefs.baseFont)
+        let operation = PrintRenderer.operation(text: tab.text, title: tab.title, font: prefs.baseFont,
+                                                markdown: tab.markdownEnabled)
         operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
     }
 
@@ -857,6 +930,18 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSMenuIt
             return tabManager.tabs.contains { $0.isDirty && $0.fileURL != nil }
         case #selector(findNextMatch(_:)), #selector(findPreviousMatch(_:)), #selector(printTab(_:)):
             return currentTab != nil
+        case #selector(toggleMarkdown(_:)):
+            item.state = currentTab?.markdownEnabled == true ? .on : .off
+            return currentTab != nil
+        case #selector(toggleMarkdownPreview(_:)):
+            item.state = currentTab?.previewVisible == true ? .on : .off
+            return currentTab != nil
+        case #selector(formatBold(_:)), #selector(formatItalic(_:)), #selector(formatStrikethrough(_:)),
+             #selector(formatCode(_:)), #selector(formatLink(_:)), #selector(formatHeading(_:)),
+             #selector(formatBulletList(_:)), #selector(formatNumberedList(_:)), #selector(formatChecklist(_:)),
+             #selector(formatQuote(_:)):
+            // Formatting edits Markdown text, so it is only offered in Markdown tabs.
+            return currentTab?.markdownEnabled == true
         default:
             break
         }

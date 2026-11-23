@@ -52,6 +52,9 @@ final class Preferences: ObservableObject {
         static let appearance = "AppearanceMode"
         static let spellCheck = "SpellCheck"
         static let tabDropAction = "TabDropAction"
+        static let markdownForMarkdownFiles = "MarkdownForMarkdownFiles"
+        static let markdownPreviewByDefault = "MarkdownPreviewByDefault"
+        static let showMarkdownToolbar = "ShowMarkdownToolbar"
         /// System key: when true, holding a key shows the accent picker instead of repeating.
         static let pressAndHold = "ApplePressAndHoldEnabled"
     }
@@ -73,6 +76,12 @@ final class Preferences: ObservableObject {
             applyKeyRepeat()
         }
     }
+    /// .md / .markdown files open with Markdown formatting.
+    @Published var markdownForMarkdownFiles: Bool { didSet { defaults.set(markdownForMarkdownFiles, forKey: Keys.markdownForMarkdownFiles) } }
+    /// Markdown files open with the preview pane showing.
+    @Published var markdownPreviewByDefault: Bool { didSet { defaults.set(markdownPreviewByDefault, forKey: Keys.markdownPreviewByDefault) } }
+    /// The formatting toolbar shows above Markdown tabs.
+    @Published var showMarkdownToolbar: Bool { didSet { defaults.set(showMarkdownToolbar, forKey: Keys.showMarkdownToolbar) } }
     @Published var tabDropAction: TabDropAction {
         didSet { defaults.set(tabDropAction.rawValue, forKey: Keys.tabDropAction) }
     }
@@ -95,6 +104,9 @@ final class Preferences: ObservableObject {
             Keys.appearance: AppearanceMode.system.rawValue,
             Keys.spellCheck: false,
             Keys.tabDropAction: TabDropAction.ask.rawValue,
+            Keys.markdownForMarkdownFiles: true,
+            Keys.markdownPreviewByDefault: false,
+            Keys.showMarkdownToolbar: true,
         ])
         fontName = defaults.string(forKey: Keys.fontName) ?? ""
         fontSize = defaults.double(forKey: Keys.fontSize)
@@ -105,6 +117,9 @@ final class Preferences: ObservableObject {
         keyRepeat = defaults.bool(forKey: Keys.keyRepeat)
         spellCheck = defaults.bool(forKey: Keys.spellCheck)
         appearanceMode = AppearanceMode(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .system
+        markdownForMarkdownFiles = defaults.bool(forKey: Keys.markdownForMarkdownFiles)
+        markdownPreviewByDefault = defaults.bool(forKey: Keys.markdownPreviewByDefault)
+        showMarkdownToolbar = defaults.bool(forKey: Keys.showMarkdownToolbar)
         tabDropAction = TabDropAction(rawValue: defaults.string(forKey: Keys.tabDropAction) ?? "") ?? .ask
         if fontSize < 4 { fontSize = 13 }
         if zoomPercent < 10 || zoomPercent > 500 { zoomPercent = 100 }

@@ -4,7 +4,7 @@ import AppKit
 /// with the tab name, date and page numbers in the header and footer.
 @MainActor
 enum PrintRenderer {
-    static func operation(text: String, title: String, font: NSFont) -> NSPrintOperation {
+    static func operation(text: String, title: String, font: NSFont, markdown: Bool = false) -> NSPrintOperation {
         let info = (NSPrintInfo.shared.copy() as? NSPrintInfo) ?? NSPrintInfo()
         info.horizontalPagination = .fit
         info.verticalPagination = .automatic
@@ -35,6 +35,10 @@ enum PrintRenderer {
             .foregroundColor: NSColor.black,
             .paragraphStyle: paragraph,
         ]))
+        if markdown, let storage = view.textStorage, storage.length <= MarkdownStyler.maxStyledLength {
+            // Same formatting as on screen; colours resolve for the light page (view appearance is Aqua).
+            MarkdownStyler.style(storage, range: NSRange(location: 0, length: storage.length), base: font, paragraph: paragraph)
+        }
         if let manager = view.layoutManager, let container = view.textContainer {
             manager.ensureLayout(for: container)
             let used = manager.usedRect(for: container)

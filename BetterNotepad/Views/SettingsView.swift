@@ -69,6 +69,16 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Markdown") {
+                Toggle("Open .md files with Markdown formatting", isOn: $prefs.markdownForMarkdownFiles)
+                Toggle("Show the preview beside Markdown files", isOn: $prefs.markdownPreviewByDefault)
+                Toggle("Show the formatting toolbar", isOn: $prefs.showMarkdownToolbar)
+                Text("Markdown files stay plain text: formatting only changes how they look here. Any tab can switch between Plain Text and Markdown from the status bar or with ⇧⌘M; ⌥⌘P shows the preview.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("Tabs") {
                 Picker("Dragging a tab to Finder or the Desktop", selection: $prefs.tabDropAction) {
                     ForEach(TabDropAction.allCases) { Text($0.title).tag($0) }
@@ -112,7 +122,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 580, height: 780)
+        .frame(width: 580, height: 820)
         .onAppear { autoCheckUpdates = updater.automaticallyChecksForUpdates }
     }
 

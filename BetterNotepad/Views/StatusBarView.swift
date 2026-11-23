@@ -9,6 +9,8 @@ final class StatusModel: ObservableObject {
     @Published var zoom = "100%"
     @Published var lineEnding = LineEnding.lf
     @Published var encoding = TextEncodingKind.utf8
+    @Published var isMarkdown = false
+    var onChooseMarkdown: ((Bool) -> Void)?
 
     var onChooseLineEnding: ((LineEnding) -> Void)?
     var onChooseEncoding: ((TextEncodingKind) -> Void)?
@@ -32,6 +34,27 @@ struct StatusBarView: View {
                 cell(model.characters)
                 separator
                 cell(model.zoom)
+                separator
+                Menu {
+                    Picker("Format", selection: Binding(
+                        get: { model.isMarkdown },
+                        set: { model.onChooseMarkdown?($0) })) {
+                        Text("Plain Text").tag(false)
+                        Text("Markdown").tag(true)
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Text(model.isMarkdown ? "Markdown" : "Plain Text")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .padding(.horizontal, 8)
+                .help("Show this tab as plain text or with Markdown formatting (⇧⌘M)")
                 separator
                 Menu {
                     Picker("Line Endings", selection: Binding(

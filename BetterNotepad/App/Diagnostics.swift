@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import WebKit
 
 /// Debug-build-only self tests, driven by environment variables. Not compiled into Release.
 ///   BN_DIAG=render  BN_DIAG_OUT=/path.png   – two tabs with text, renders the window to a PNG
@@ -18,13 +19,15 @@ extension AppDelegate {
                 case "windows": self.diagWindows()
                 case "tabs": self.diagTabs(dir: env["BN_DIAG_OUT"] ?? "/tmp")
                 case "merge": self.diagMerge()
+                case "markdown": self.diagMarkdown(dir: env["BN_DIAG_OUT"] ?? "/tmp")
                 case "showcase": self.diagShowcase(out: env["BN_DIAG_OUT"] ?? "/tmp/bn.png", file: env["BN_DIAG_FILE"])
                 case "tabmove": self.diagTabMove()
                 case "print": self.diagPrint(out: env["BN_DIAG_OUT"] ?? "/tmp/bn.pdf")
                 default: print("DIAG unknown mode \(mode)")
                 }
                 fflush(stdout)
-                if env["BN_DIAG_KEEP_OPEN"] == nil { NSApp.terminate(nil) }
+                // "markdown" quits by itself once its asynchronous preview check is done.
+                if env["BN_DIAG_KEEP_OPEN"] == nil, mode != "markdown" { NSApp.terminate(nil) }
             }
         }
     }
@@ -194,6 +197,181 @@ extension AppDelegate {
         pump(0.3)
         if let sheet = window.attachedSheet { print("DIAG close button asked to save (expected for unsaved text)"); window.endSheet(sheet, returnCode: .alertThirdButtonReturn) }
         print("DIAG close button: tabs \(before) -> \(c.tabManager.tabs.count)")
+    }
+
+    private func diagMarkdown(dir: String) {
+        guard let c = activeController, let window = c.window else { return }
+        window.setFrame(NSRect(x: 80, y: 120, width: 1100, height: 680), display: true)
+        let sample = """
+        # Project notes
+        Some **bold**, *italic*, ~~gone~~ and `code` text, plus a [link](https://example.com).
+
+        ## Tasks
+        - [ ] Write the release notes
+        - [x] Ship version 1.1
+        1. First step
+        2. Second step
+
+        > A quote with **bold** inside.
+
+        ```swift
+        let a = b < c && **not bold**
+        ```
+
+        snake_case_name stays plain, and so does 2*3*4.
+
+        | Name | Value |
+        |------|------:|
+        | <b>x</b> | 1 |
+        """
+        let tab = c.currentTab!
+        tab.setMarkdownEnabled(true)
+        tab.textView.insertText(sample, replacementRange: NSRange(location: 0, length: 0))
+        pump(0.3)
+        let ns = tab.nsText
+        let storage = tab.textView.textStorage!
+        let base = Preferences.shared.editorFont
+        func font(at needle: String, offset: Int = 0) -> NSFont? {
+            let r = ns.range(of: needle); guard r.location != NSNotFound else { return nil }
+            return storage.attribute(.font, at: r.location + offset, effectiveRange: nil) as? NSFont
+        }
+        func traits(_ f: NSFont?) -> String {
+            guard let f else { return "nil" }
+            let t = NSFontManager.shared.traits(of: f)
+            return "\(Int(f.pointSize))pt\(t.contains(.boldFontMask) ? " bold" : "")\(t.contains(.italicFontMask) ? " italic" : "")"
+        }
+        func color(at needle: String, offset: Int = 0) -> String {
+            let r = ns.range(of: needle)
+            let c = storage.attribute(.foregroundColor, at: r.location + offset, effectiveRange: nil) as? NSColor
+            return c == Theme.markdownMarker ? "marker" : c == NSColor.linkColor ? "link" : c == Theme.markdownAccent ? "accent" : c == NSColor.textColor ? "text" : String(describing: c)
+        }
+        print("DIAG base font \(traits(base))")
+        print("DIAG H1 '# Project': \(traits(font(at: "# Project", offset: 2))) marker '#': \(color(at: "# Project"))")
+        print("DIAG H2 '## Tasks': \(traits(font(at: "## Tasks", offset: 3)))")
+        print("DIAG bold: \(traits(font(at: "**bold**", offset: 2))) markers: \(color(at: "**bold**"))")
+        print("DIAG italic: \(traits(font(at: "*italic*", offset: 1)))")
+        print("DIAG strike: \(storage.attribute(.strikethroughStyle, at: ns.range(of: "~~gone~~").location + 2, effectiveRange: nil) != nil)")
+        print("DIAG code font: \(font(at: "`code`", offset: 1)?.fontName ?? "nil")")
+        print("DIAG link text: \(color(at: "[link]", offset: 1)) url: \(color(at: "(https://example.com)", offset: 2)) key: \(storage.attribute(MarkdownStyler.linkKey, at: ns.range(of: "[link]").location + 1, effectiveRange: nil) as? String ?? "nil")")
+        print("DIAG task box: \(color(at: "- [ ] Write", offset: 2)) checked done strike: \(storage.attribute(.strikethroughStyle, at: ns.range(of: "Ship version").location, effectiveRange: nil) != nil)")
+        print("DIAG list number: \(color(at: "1. First"))")
+        print("DIAG fenced line not bold: \(traits(font(at: "**not bold**", offset: 2)))")
+        print("DIAG snake_case plain: \(traits(font(at: "case_name", offset: 0))) 2*3*4 plain: \(traits(font(at: "3*4", offset: 0)))")
+
+        // Typing inside the code fence keeps code styling; closing fence count changes restyle below.
+        let fenceEnd = ns.range(of: "```\n\nsnake").location
+        tab.textView.setSelectedRange(NSRange(location: fenceEnd, length: 0))
+        tab.textView.insertText("x", replacementRange: tab.textView.selectedRange())
+        print("DIAG typed in fence: \(font(at: "x```")?.fontName ?? "nil")")
+        tab.textView.insertText("", replacementRange: NSRange(location: fenceEnd, length: 1))
+        tab.tabUndoManager.removeAllActions()
+
+        // Commands.
+        func select(_ needle: String) { tab.textView.setSelectedRange(tab.nsText.range(of: needle)) }
+        func line(containing needle: String) -> String {
+            let t = tab.nsText; return t.substring(with: t.lineRange(for: t.range(of: needle))).trimmingCharacters(in: .newlines)
+        }
+        select("Some")
+        tab.perform(.bold)
+        print("DIAG bold cmd: \(line(containing: "Some"))")
+        tab.perform(.bold)
+        print("DIAG bold again (unwrap): \(line(containing: "Some"))")
+        select("Some"); tab.perform(.italic)
+        print("DIAG italic cmd: \(line(containing: "Some"))")
+        tab.tabUndoManager.undo()
+        print("DIAG undo: \(line(containing: "Some"))")
+        select("Some"); tab.perform(.heading(2))
+        print("DIAG heading 2: \(line(containing: "Some"))")
+        tab.perform(.heading(2))
+        print("DIAG heading 2 again: \(line(containing: "Some"))")
+        select("snake"); tab.perform(.bulletList)
+        print("DIAG bullet: \(line(containing: "snake"))")
+        tab.perform(.numberedList)
+        print("DIAG numbered: \(line(containing: "snake"))")
+        tab.perform(.checklist)
+        print("DIAG checklist: \(line(containing: "snake"))")
+        tab.perform(.quote)
+        print("DIAG quote: \(line(containing: "snake"))")
+        tab.perform(.quote)
+
+        // Return continues lists and ends empty items.
+        let end = tab.nsText.range(of: "Second step").location + ("Second step" as NSString).length
+        tab.textView.setSelectedRange(NSRange(location: end, length: 0))
+        _ = tab.continueListOnReturn()
+        print("DIAG return after '2. Second step' -> next line '\(line(containing: "3. "))'")
+        _ = tab.continueListOnReturn()
+        let caretLine = tab.nsText.substring(with: tab.nsText.lineRange(for: tab.textView.selectedRange())).trimmingCharacters(in: .newlines)
+        print("DIAG return on empty item -> line '\(caretLine)' (list ended)")
+        let taskEnd = tab.nsText.range(of: "release notes").location + 13
+        tab.textView.setSelectedRange(NSRange(location: taskEnd, length: 0))
+        _ = tab.continueListOnReturn()
+        print("DIAG return in checklist -> '\(tab.nsText.substring(with: tab.nsText.lineRange(for: tab.textView.selectedRange())).trimmingCharacters(in: .newlines))'")
+
+        // Clicking a task box toggles it.
+        let box = tab.nsText.range(of: "- [ ] Write").location + 3
+        _ = tab.handleMarkdownClick(at: box, modifiers: [])
+        print("DIAG click box: \(line(containing: "Write the release"))")
+
+        // Preview HTML escaping and structure.
+        let html = MarkdownHTML.render(tab.text)
+        print("DIAG html escapes code '<': \(html.contains("b &lt; c")), table: \(html.contains("<table>")), task checkbox: \(html.contains("type=\"checkbox\"")), right align: \(html.contains("text-align: right"))")
+
+        // Show preview and render the editor side.
+        tab.setPreviewVisible(true)
+        pump(1.5)
+        print("DIAG preview visible: \(tab.previewVisible), toolbar shown: \(c.markdownBar.previewVisible), split views: \(tab.rootView.arrangedSubviews.count)")
+        if let frameView = window.contentView?.superview, let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) {
+            frameView.cacheDisplay(in: frameView.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir + "/md-window.png"))
+        }
+        // Session keeps the flags.
+        let snap = tab.snapshot()
+        print("DIAG snapshot markdown=\(snap.markdown ?? false) preview=\(snap.preview ?? false)")
+        print("DIAG suggested drag name: \(c.suggestedFileName(forTabID: tab.id))")
+
+        // Typing speed in a larger Markdown document.
+        let big = String(repeating: sample + "\n\n", count: 600)
+        c.newTab(nil)
+        let t2 = c.currentTab!
+        t2.setMarkdownEnabled(true)
+        let start = CFAbsoluteTimeGetCurrent()
+        t2.textView.insertText(big, replacementRange: NSRange(location: 0, length: 0))
+        print(String(format: "PERF style %d chars on paste: %.0f ms", (big as NSString).length, (CFAbsoluteTimeGetCurrent() - start) * 1000))
+        let mid = (big as NSString).length / 2
+        t2.textView.setSelectedRange(NSRange(location: mid, length: 0))
+        var times: [Double] = []
+        for ch in "typing **fast**" {
+            let s = CFAbsoluteTimeGetCurrent()
+            t2.textView.insertText(String(ch), replacementRange: t2.textView.selectedRange())
+            window.displayIfNeeded()
+            times.append((CFAbsoluteTimeGetCurrent() - s) * 1000)
+        }
+        print(String(format: "PERF markdown typing: avg %.2f ms, max %.2f ms", times.reduce(0, +) / Double(times.count), times.max() ?? 0))
+
+        // The preview loads asynchronously: check it from a later main-queue turn (waiting inside this
+        // block would stall WebKit's callbacks), then quit.
+        c.selectTab(id: tab.id)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            guard let web = tab.rootView.arrangedSubviews.last?.subviews.first as? WKWebView else {
+                print("DIAG no web view"); NSApp.terminate(nil); return
+            }
+            web.evaluateJavaScript("document.getElementById('content').innerHTML.length") { v, e in
+                print("DIAG preview content length: \(v ?? "nil") error: \(e.map { "\($0)" } ?? "none") loading=\(web.isLoading)")
+                web.takeSnapshot(with: nil) { image, _ in
+                    if let image, let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) {
+                        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir + "/md-preview.png"))
+                        print("DIAG preview snapshot written")
+                    }
+                    if let frameView = window.contentView?.superview,
+                       let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) {
+                        frameView.cacheDisplay(in: frameView.bounds, to: rep)
+                        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir + "/md-window.png"))
+                    }
+                    fflush(stdout)
+                    NSApp.terminate(nil)
+                }
+            }
+        }
     }
 
     /// Window with realistic content for the website screenshot.

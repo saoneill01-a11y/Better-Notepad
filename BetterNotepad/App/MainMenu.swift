@@ -75,6 +75,28 @@ enum MainMenuBuilder {
         let format = submenu(in: main, title: "Format")
         format.addItem(item("Font…", #selector(MainWindowController.showEditorFontPanel(_:))))
         format.addItem(item("Word Wrap", #selector(MainWindowController.toggleWordWrap(_:))))
+        format.addItem(.separator())
+        let markdownNote = NSMenuItem(title: "Markdown", action: nil, keyEquivalent: "")
+        markdownNote.isEnabled = false
+        format.addItem(markdownNote)
+        format.addItem(item("Bold", #selector(MainWindowController.formatBold(_:)), "b"))
+        format.addItem(item("Italic", #selector(MainWindowController.formatItalic(_:)), "i"))
+        format.addItem(item("Strikethrough", #selector(MainWindowController.formatStrikethrough(_:)), "x", [.command, .shift]))
+        format.addItem(item("Code", #selector(MainWindowController.formatCode(_:)), "e"))
+        format.addItem(item("Link…", #selector(MainWindowController.formatLink(_:)), "k"))
+        let headingItem = NSMenuItem(title: "Heading", action: nil, keyEquivalent: "")
+        let headingMenu = NSMenu(title: "Heading")
+        for (level, title) in [(1, "Heading 1"), (2, "Heading 2"), (3, "Heading 3"), (0, "Normal Text")] {
+            let h = item(title, #selector(MainWindowController.formatHeading(_:)), String(level), [.command, .option])
+            h.tag = level
+            headingMenu.addItem(h)
+        }
+        headingItem.submenu = headingMenu
+        format.addItem(headingItem)
+        format.addItem(item("Bulleted List", #selector(MainWindowController.formatBulletList(_:)), "8", [.command, .shift]))
+        format.addItem(item("Numbered List", #selector(MainWindowController.formatNumberedList(_:)), "7", [.command, .shift]))
+        format.addItem(item("Checklist", #selector(MainWindowController.formatChecklist(_:)), "9", [.command, .shift]))
+        format.addItem(item("Quote", #selector(MainWindowController.formatQuote(_:)), "'", [.command, .shift]))
 
         // View
         let view = submenu(in: main, title: "View")
@@ -85,6 +107,9 @@ enum MainMenuBuilder {
         view.addItem(item("Line Numbers", #selector(MainWindowController.toggleLineNumbers(_:))))
         view.addItem(item("Word Wrap", #selector(MainWindowController.toggleWordWrap(_:))))
         view.addItem(item("Spell Check", #selector(AppDelegate.toggleSpellCheck(_:))))
+        view.addItem(.separator())
+        view.addItem(item("Markdown Formatting", #selector(MainWindowController.toggleMarkdown(_:)), "m", [.command, .shift]))
+        view.addItem(item("Markdown Preview", #selector(MainWindowController.toggleMarkdownPreview(_:)), "p", [.command, .option]))
         view.addItem(.separator())
         let appearanceItem = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
         let appearanceMenu = NSMenu(title: "Appearance")

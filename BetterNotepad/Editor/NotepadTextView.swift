@@ -7,6 +7,8 @@ final class NotepadTextView: NSTextView {
 
     /// Called when Escape is pressed (used to close the find bar).
     var onEscape: (() -> Void)?
+    /// Markdown clicks (task boxes, ⌘-click on links): character index and modifiers; true if handled.
+    var markdownClick: ((Int, NSEvent.ModifierFlags) -> Bool)?
 
     /// Width of the clickable margin to the left of the text inside the view.
     var leftMarginHitWidth: CGFloat {
@@ -103,6 +105,10 @@ final class NotepadTextView: NSTextView {
         if p.x < leftMarginHitWidth, !mods.contains(.command), !mods.contains(.option), !mods.contains(.control) {
             trackLineSelection(with: event)
             return
+        }
+        if let markdownClick, event.clickCount == 1, let window {
+            let index = characterIndex(for: window.convertPoint(toScreen: event.locationInWindow))
+            if index != NSNotFound, markdownClick(index, mods) { return }
         }
         super.mouseDown(with: event)
     }

@@ -79,6 +79,7 @@
 			<array>
 				<string>public.text</string>
 				<string>public.log</string>
+				<string>net.daringfireball.markdown</string>
 				<string>public.comma-separated-values-text</string>
 				<string>public.json</string>
 				<string>public.xml</string>

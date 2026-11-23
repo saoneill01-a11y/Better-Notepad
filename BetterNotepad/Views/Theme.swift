@@ -28,6 +28,13 @@ enum Theme {
     /// Line numbers.
     static let gutterText = dynamic("BNGutterText", light: rgb(0x000000, alpha: 0.35), dark: rgb(0xFFFFFF, alpha: 0.32))
 
+    /// Faded Markdown symbols (#, **, -, >, link URLs).
+    static let markdownMarker = dynamic("BNMarkdownMarker", light: rgb(0x000000, alpha: 0.32), dark: rgb(0xFFFFFF, alpha: 0.32))
+    /// List bullets, numbers and checkboxes.
+    static let markdownAccent = dynamic("BNMarkdownAccent", light: rgb(0x2F6FD6), dark: rgb(0x6EA8FF))
+    /// Background behind inline code and code blocks.
+    static let codeBackground = dynamic("BNCodeBackground", light: rgb(0x000000, alpha: 0.05), dark: rgb(0xFFFFFF, alpha: 0.07))
+
     static var chromeColor: Color { Color(nsColor: chrome) }
     static var editorColor: Color { Color(nsColor: editorBackground) }
     static var borderColor: Color { Color(nsColor: border) }

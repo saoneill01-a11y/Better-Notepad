@@ -17,6 +17,9 @@ check for updates automatically.
   Drag a whole window by its title bar onto another window's title or tab bar to merge its tabs into it.
 - Autosave of every tab, including untitled ones, without touching the real file until ⌘S; nothing prompts on quit
 - Session restore: windows, tabs, cursor, selection, scroll position
+- Markdown: `.md` files show formatting right in the editor (headings, bold, italic, lists, checklists, links,
+  code) with the symbols faded, a formatting toolbar (⌘B, ⌘I, ⌘K…), lists that continue on Return, clickable
+  checkboxes, and an optional live preview beside the text (⌥⌘P). Files stay plain Markdown.
 - Find & Replace (match case, whole word), Go to Line, Insert Time/Date (F5)
 - Keeps each file's encoding and line endings; change either from the status bar or in Save As
 - Print and Page Setup, word wrap, optional line numbers, zoom (keys or pinch), spell check
@@ -26,7 +29,7 @@ check for updates automatically.
 ## Project layout
 
 ```
-project.yml                      XcodeGen spec (regenerates BetterNotepad.xcodeproj); Sparkle via Swift Package Manager
+project.yml                      XcodeGen spec (regenerates BetterNotepad.xcodeproj); Sparkle and swift-markdown via SwiftPM
 install.sh                       Release build + install into /Applications (local use)
 release.sh                       Signed + notarized Better-Notepad.dmg and Sparkle appcast.xml for publishing
 BetterNotepad/
@@ -37,7 +40,8 @@ BetterNotepad/
   Model/     Preferences, SessionStore (autosave + session.json), TextFileFormat
              (encoding & line-ending codec), LineIndex (incremental line table), TextSearch, RecentFiles
   Editor/    EditorTab (one document), NotepadTextView (margin line selection, context menu, spelling),
-             LineNumberRulerView (gutter)
+             LineNumberRulerView (gutter), MarkdownStyler (in-editor formatting), MarkdownCommands
+             (toolbar actions, list continuation), MarkdownPreview (HTML renderer + WKWebView pane)
   Window/    MainWindowController (one window: tabs, file actions, find/replace, printing), PrintRenderer
   Views/     TabBarView, FindBarView, StatusBarView, SettingsView (SwiftUI), Theme (light/dark colours)
 ```
@@ -95,6 +99,10 @@ Save / Don't Save / Cancel for tabs with unsaved changes.
 | Go to line | ⌘L |
 | Zoom in / out / reset | ⌘= / ⌘- / ⌘0, or pinch; two-finger double-tap resets |
 | Insert time/date | F5 (fn‑F5 on laptop keyboards) |
+| Markdown formatting on/off / Preview | ⇧⌘M / ⌥⌘P |
+| Bold / Italic / Strikethrough / Code / Link | ⌘B / ⌘I / ⇧⌘X / ⌘E / ⌘K |
+| Heading 1–3 / Normal text | ⌥⌘1–3 / ⌥⌘0 |
+| Bulleted / Numbered list / Checklist / Quote | ⇧⌘8 / ⇧⌘7 / ⇧⌘9 / ⇧⌘' |
 | Settings | ⌘, |
 
 Click in the left margin (or the line-number gutter) to select a line; drag to select several;
